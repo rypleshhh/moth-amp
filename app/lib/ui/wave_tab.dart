@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../player/player_controller.dart';
+import 'track_cover.dart';
 import 'track_list.dart';
 
 /// «Моя волна»: выбор режима, запуск и бесконечная очередь.
@@ -107,6 +108,7 @@ class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
                     final t = player.queue[i];
                     final ms = t.durationMs;
                     return ListTile(
+                      leading: TrackCover(url: t.coverUrl),
                       dense: true,
                       enabled: t.available,
                       selected: i == player.index,

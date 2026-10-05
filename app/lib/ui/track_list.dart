@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import 'errors.dart';
+import 'track_cover.dart';
 
 String formatDuration(Duration d) {
   final m = d.inMinutes;
@@ -63,6 +64,7 @@ class _TrackListState extends State<TrackList>
                 final t = tracks[i];
                 final ms = t.durationMs;
                 return ListTile(
+                  leading: TrackCover(url: t.coverUrl),
                   enabled: t.available,
                   selected: t.id == currentId,
                   dense: true,
