@@ -154,6 +154,20 @@ impl EqSettings {
         format!("format=format=floatp,lavfi=[{}]", filters.join(","))
     }
 
+    /// Итоговая АЧХ (полосы + предусилитель) в дБ на заданных частотах —
+    /// то, что реально делает эквалайзер со звуком.
+    pub fn response_db(&self, freqs: &[f32]) -> Vec<f32> {
+        if !self.enabled {
+            return vec![0.0; freqs.len()];
+        }
+        let filters: Vec<EffectiveFilter> = self.bands.iter().filter_map(effective_filter).collect();
+        let preamp = self.effective_preamp_db();
+        freqs
+            .iter()
+            .map(|&f| preamp + filters.iter().map(|flt| flt.response_db(f)).sum::<f32>())
+            .collect()
+    }
+
     /// Предусилитель, который нужно применить громкостью плеера.
     pub fn effective_preamp_db(&self) -> f32 {
         if self.enabled {
@@ -206,17 +220,71 @@ fn clamp_gain(g: f32) -> f32 {
     }
 }
 
-fn band_filter(b: &Band) -> Option<String> {
+/// Ширина пикового фильтра так, как её понимает `equalizer` в FFmpeg.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Width {
+    Q(f32),
+    Octaves(f32),
+}
+
+/// Фильтр в том виде, в каком он реально применяется в mpv. Из него строится
+/// и строка `af`, и кривая АЧХ для экрана — они всегда совпадают.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct EffectiveFilter {
+    freq: f32,
+    width: Width,
+    gain: f32,
+}
+
+impl EffectiveFilter {
+    fn to_af(self) -> String {
+        let (freq, gain) = (self.freq, self.gain);
+        match self.width {
+            Width::Q(q) => format!("equalizer=f={freq:.1}:t=q:w={q:.3}:g={gain:.2}"),
+            Width::Octaves(o) => format!("equalizer=f={freq:.1}:t=o:w={o:.2}:g={gain:.2}"),
+        }
+    }
+
+    /// Усиление в дБ на частоте `f` (пиковый фильтр RBJ, как в FFmpeg).
+    fn response_db(self, f: f32) -> f32 {
+        use std::f64::consts::{LN_2, PI};
+        let fs = RESPONSE_SAMPLE_RATE;
+        let w0 = 2.0 * PI * f64::from(self.freq) / fs;
+        let (sin, cos) = w0.sin_cos();
+        let alpha = match self.width {
+            Width::Q(q) => sin / (2.0 * f64::from(q)),
+            Width::Octaves(bw) => sin * (LN_2 / 2.0 * f64::from(bw) * w0 / sin).sinh(),
+        };
+        let a = 10f64.powf(f64::from(self.gain) / 40.0);
+        let (b0, b1, b2) = (1.0 + alpha * a, -2.0 * cos, 1.0 - alpha * a);
+        let (a0, a1, a2) = (1.0 + alpha / a, -2.0 * cos, 1.0 - alpha / a);
+
+        // |H(e^jw)| = |b0 + b1 z^-1 + b2 z^-2| / |a0 + a1 z^-1 + a2 z^-2|
+        let w = 2.0 * PI * f64::from(f) / fs;
+        let mag = |c0: f64, c1: f64, c2: f64| {
+            let re = c0 + c1 * w.cos() + c2 * (2.0 * w).cos();
+            let im = -(c1 * w.sin() + c2 * (2.0 * w).sin());
+            (re * re + im * im).sqrt()
+        };
+        (20.0 * (mag(b0, b1, b2) / mag(a0, a1, a2)).log10()) as f32
+    }
+}
+
+/// Частота дискретизации для расчёта кривой (типичный вывод mpv).
+const RESPONSE_SAMPLE_RATE: f64 = 48_000.0;
+
+fn effective_filter(b: &Band) -> Option<EffectiveFilter> {
     let gain = clamp_gain(b.gain_db);
     if gain.abs() < NEGLIGIBLE_DB || !b.freq_hz.is_finite() || !b.q.is_finite() {
         return None;
     }
     let freq = b.freq_hz.clamp(10.0, 22000.0);
     match b.kind {
-        FilterKind::Peaking => {
-            let q = b.q.clamp(0.1, 20.0);
-            Some(format!("equalizer=f={freq:.1}:t=q:w={q:.3}:g={gain:.2}"))
-        }
+        FilterKind::Peaking => Some(EffectiveFilter {
+            freq,
+            width: Width::Q(b.q.clamp(0.1, 20.0)),
+            gain,
+        }),
         // Полка ≈ широкий пик, накрывающий диапазон от частоты среза до края
         // слышимого диапазона.
         FilterKind::LowShelf => shelf_as_peak(AUDIBLE_MIN_HZ, freq, gain),
@@ -224,16 +292,33 @@ fn band_filter(b: &Band) -> Option<String> {
     }
 }
 
+fn band_filter(b: &Band) -> Option<String> {
+    effective_filter(b).map(EffectiveFilter::to_af)
+}
+
 const AUDIBLE_MIN_HZ: f32 = 20.0;
 const AUDIBLE_MAX_HZ: f32 = 20000.0;
 
-fn shelf_as_peak(lo: f32, hi: f32, gain: f32) -> Option<String> {
+fn shelf_as_peak(lo: f32, hi: f32, gain: f32) -> Option<EffectiveFilter> {
     if hi <= lo {
         return None;
     }
-    let center = (lo * hi).sqrt();
-    let octaves = (hi / lo).log2().clamp(1.0, 6.0);
-    Some(format!("equalizer=f={center:.1}:t=o:w={octaves:.2}:g={gain:.2}"))
+    Some(EffectiveFilter {
+        freq: (lo * hi).sqrt(),
+        width: Width::Octaves((hi / lo).log2().clamp(1.0, 6.0)),
+        gain,
+    })
+}
+
+/// `n` частот от 20 Гц до 20 кГц равномерно по логарифмической шкале.
+pub fn log_frequencies(n: usize) -> Vec<f32> {
+    let (lo, hi) = (AUDIBLE_MIN_HZ.ln(), AUDIBLE_MAX_HZ.ln());
+    (0..n)
+        .map(|i| {
+            let t = if n > 1 { i as f32 / (n - 1) as f32 } else { 0.0 };
+            (lo + (hi - lo) * t).exp()
+        })
+        .collect()
 }
 
 /// Линейная интерполяция усиления по log2(частоты); за краями — крайние значения.
@@ -458,6 +543,41 @@ mod tests {
              equalizer=f=13416.4:t=o:w=1.15:g=-1.00,\
              equalizer=f=1000.0:t=q:w=20.000:g=2.00]"
         );
+    }
+
+    #[test]
+    fn response_curve() {
+        let freqs = [20.0, 1000.0, 10000.0];
+        assert_eq!(EqSettings::flat(EqMode::Graphic10).response_db(&freqs), vec![0.0; 3]);
+
+        let mut s = EqSettings::flat(EqMode::Parametric);
+        s.bands.push(Band { kind: FilterKind::Peaking, freq_hz: 1000.0, gain_db: 6.0, q: 1.414 });
+        let r = s.response_db(&freqs);
+        assert!((r[1] - 6.0).abs() < 0.05, "в центре полосы ровно её усиление: {}", r[1]);
+        assert!(r[0].abs() < 0.2 && r[2].abs() < 0.5, "вдали от полосы почти 0: {r:?}");
+
+        s.preamp_db = -6.0;
+        let r = s.response_db(&freqs);
+        assert!(r[1].abs() < 0.05 && (r[0] + 6.0).abs() < 0.2);
+
+        s.enabled = false;
+        assert_eq!(s.response_db(&freqs), vec![0.0; 3]);
+    }
+
+    #[test]
+    fn shelf_emulation_curve() {
+        let mut s = EqSettings::flat(EqMode::Parametric);
+        s.bands.push(Band { kind: FilterKind::LowShelf, freq_hz: 105.0, gain_db: 5.0, q: 0.7 });
+        let r = s.response_db(&[40.0, 5000.0]);
+        assert!(r[0] > 4.0, "ниже среза — подъём: {}", r[0]);
+        assert!(r[1].abs() < 0.3, "далеко выше среза — ровно: {}", r[1]);
+    }
+
+    #[test]
+    fn log_frequency_grid() {
+        let f = log_frequencies(3);
+        assert!((f[0] - 20.0).abs() < 1e-3 && (f[2] - 20000.0).abs() < 1.0);
+        assert!((f[1] - 632.5).abs() < 1.0);
     }
 
     #[test]

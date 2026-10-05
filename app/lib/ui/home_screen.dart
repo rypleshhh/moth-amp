@@ -4,6 +4,7 @@ import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import 'cache_dialog.dart';
+import 'deck.dart';
 import 'errors.dart';
 import 'player_bar.dart';
 import 'track_list.dart';
@@ -26,8 +27,20 @@ class HomeScreen extends StatelessWidget {
     onLogout();
   }
 
+  /// С какой ширины окна показывать деку слева вместо нижней панели.
+  static const _wideBreakpoint = 900.0;
+
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+    final tabs = TabBarView(
+      children: [
+        WaveTab(player: player),
+        TrackList(load: likedTracks, player: player),
+        _PlaylistsTab(player: player, eq: eq),
+        _SearchTab(player: player),
+      ],
+    );
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -63,15 +76,20 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            WaveTab(player: player),
-            TrackList(load: likedTracks, player: player),
-            _PlaylistsTab(player: player, eq: eq),
-            _SearchTab(player: player),
-          ],
-        ),
-        bottomNavigationBar: PlayerBar(player: player, eq: eq),
+        body: wide
+            ? Row(
+                children: [
+                  SizedBox(
+                    width: 360,
+                    child: ClassicDeck(player: player, eq: eq),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: tabs),
+                ],
+              )
+            : tabs,
+        // На широком окне управление в деке слева.
+        bottomNavigationBar: wide ? null : PlayerBar(player: player, eq: eq),
       ),
     );
   }

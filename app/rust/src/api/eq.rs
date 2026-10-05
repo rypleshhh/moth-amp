@@ -180,3 +180,10 @@ pub fn eq_save(path: String, state: EqStateDto) -> Result<()> {
     dsp::save_store(Path::new(&path), &store)?;
     Ok(())
 }
+
+/// Кривая АЧХ (дБ) в `points` точках от 20 Гц до 20 кГц — для дисплея плеера.
+#[flutter_rust_bridge::frb(sync)]
+pub fn eq_response(settings: EqSettingsDto, points: u32) -> Vec<f32> {
+    let freqs = dsp::log_frequencies(points as usize);
+    settings_from(settings).response_db(&freqs)
+}

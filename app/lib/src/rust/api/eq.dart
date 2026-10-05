@@ -41,6 +41,15 @@ Future<EqStateDto> eqLoad({required String path}) =>
 Future<void> eqSave({required String path, required EqStateDto state}) =>
     RustLib.instance.api.crateApiEqEqSave(path: path, state: state);
 
+/// Кривая АЧХ (дБ) в `points` точках от 20 Гц до 20 кГц — для дисплея плеера.
+Float32List eqResponse({
+  required EqSettingsDto settings,
+  required int points,
+}) => RustLib.instance.api.crateApiEqEqResponse(
+  settings: settings,
+  points: points,
+);
+
 class EqBandDto {
   final FilterKindDto kind;
   final double freqHz;

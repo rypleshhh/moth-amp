@@ -26,7 +26,7 @@ class PlayerBar extends StatelessWidget {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _ProgressBar(player: player),
+                ProgressBar(player: player),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                   // Левая и правая части одинаковой ширины, поэтому кнопки
@@ -104,8 +104,8 @@ class PlayerBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            _EqualizerButton(eq: eq),
-                            Flexible(child: _VolumeSlider(player: player)),
+                            EqualizerButton(eq: eq),
+                            Flexible(child: VolumeSlider(player: player)),
                           ],
                         ),
                       ),
@@ -150,16 +150,16 @@ class _Cover extends StatelessWidget {
   }
 }
 
-class _ProgressBar extends StatefulWidget {
-  const _ProgressBar({required this.player});
+class ProgressBar extends StatefulWidget {
+  const ProgressBar({super.key, required this.player});
 
   final PlayerController player;
 
   @override
-  State<_ProgressBar> createState() => _ProgressBarState();
+  State<ProgressBar> createState() => _ProgressBarState();
 }
 
-class _ProgressBarState extends State<_ProgressBar> {
+class _ProgressBarState extends State<ProgressBar> {
   // Позиция, которую пользователь тянет ползунком (пока не отпустил).
   double? _dragMs;
 
@@ -213,8 +213,8 @@ class _ProgressBarState extends State<_ProgressBar> {
   }
 }
 
-class _VolumeSlider extends StatelessWidget {
-  const _VolumeSlider({required this.player});
+class VolumeSlider extends StatelessWidget {
+  const VolumeSlider({super.key, required this.player});
 
   final PlayerController player;
 
@@ -232,8 +232,8 @@ class _VolumeSlider extends StatelessWidget {
   }
 }
 
-class _EqualizerButton extends StatelessWidget {
-  const _EqualizerButton({required this.eq});
+class EqualizerButton extends StatelessWidget {
+  const EqualizerButton({super.key, required this.eq});
 
   final EqController eq;
 
