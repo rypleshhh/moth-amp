@@ -58,6 +58,87 @@ pub fn write_tags(path: &Path, meta: &TrackMeta, cover_jpeg: Option<&[u8]>) -> R
         .map_err(tag_error)
 }
 
+/// Что удалось прочитать из собственного файла пользователя.
+pub struct FileInfo {
+    /// `mp3` или `flac`.
+    pub codec: &'static str,
+    pub title: Option<String>,
+    pub artists: Vec<String>,
+    pub album: Option<String>,
+    pub year: Option<u32>,
+    pub duration_ms: u64,
+    /// Обложка из тегов и её MIME-тип.
+    pub cover: Option<(Vec<u8>, String)>,
+}
+
+/// Прочитать теги и свойства mp3/flac. Другие форматы не принимаются.
+pub fn read_file_info(path: &Path) -> Result<FileInfo> {
+    use lofty::file::FileType;
+
+    let file = Probe::open(path)
+        .map_err(tag_error)?
+        .guess_file_type()
+        .map_err(tag_error)?
+        .read()
+        .map_err(tag_error)?;
+    let codec = match file.file_type() {
+        FileType::Mpeg => "mp3",
+        FileType::Flac => "flac",
+        other => {
+            return Err(Error::Unexpected(format!(
+                "формат {other:?} не поддерживается: только mp3 и flac"
+            )))
+        }
+    };
+    let duration_ms = u64::try_from(file.properties().duration().as_millis()).unwrap_or(0);
+    let Some(tag) = file.primary_tag().or_else(|| file.first_tag()) else {
+        return Ok(FileInfo {
+            codec,
+            title: None,
+            artists: Vec::new(),
+            album: None,
+            year: None,
+            duration_ms,
+            cover: None,
+        });
+    };
+    let artists = tag
+        .artist()
+        .map(|a| {
+            a.split([';', '/'])
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    let year = tag
+        .get_string(ItemKey::Year)
+        .or_else(|| tag.get_string(ItemKey::RecordingDate))
+        .and_then(|s| s.get(..4))
+        .and_then(|y| y.parse().ok());
+    let cover = tag
+        .pictures()
+        .iter()
+        .find(|p| p.pic_type() == PictureType::CoverFront)
+        .or_else(|| tag.pictures().first())
+        .map(|p| {
+            let mime = p
+                .mime_type()
+                .map(|m| m.as_str().to_owned())
+                .unwrap_or_else(|| "image/jpeg".to_owned());
+            (p.data().to_vec(), mime)
+        });
+    Ok(FileInfo {
+        codec,
+        title: tag.title().map(|s| s.into_owned()),
+        artists,
+        album: tag.album().map(|s| s.into_owned()),
+        year,
+        duration_ms,
+        cover,
+    })
+}
+
 /// Прочитать основные теги (для проверки и для будущей локальной библиотеки).
 pub fn read_title_artist(path: &Path) -> Result<(Option<String>, Option<String>, bool)> {
     let file = Probe::open(path)
@@ -81,9 +162,7 @@ pub fn read_title_artist(path: &Path) -> Result<(Option<String>, Option<String>,
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
+pub(crate) mod tests_support {
     /// Минимальный корректный mp3: кадры MPEG-1 Layer III, 128 кбит/с, 44,1 кГц.
     pub(crate) fn tiny_mp3() -> Vec<u8> {
         let frame_len = 144 * 128_000 / 44_100; // 417 байт
@@ -91,6 +170,12 @@ mod tests {
         frame[..4].copy_from_slice(&[0xFF, 0xFB, 0x90, 0x64]);
         frame.repeat(20)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tests_support::tiny_mp3;
+    use super::*;
 
     #[test]
     fn writes_and_reads_tags() {

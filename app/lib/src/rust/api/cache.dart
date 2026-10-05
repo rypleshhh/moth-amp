@@ -44,6 +44,16 @@ Future<void> cacheSetAuto({required bool enabled}) =>
 
 Future<void> cacheClear() => RustLib.instance.api.crateApiCacheCacheClear();
 
+/// Дописать метаданные и теги трекам, попавшим в кэш без них.
+/// Возвращает, скольким трекам дописано. Нужна сеть.
+Future<int> cacheBackfillMeta() =>
+    RustLib.instance.api.crateApiCacheCacheBackfillMeta();
+
+/// Треки в кэше с метаданными — список «Скачанное», работает без сети.
+/// Сначала недавно игравшие.
+Future<List<TrackDto>> cachedTracks() =>
+    RustLib.instance.api.crateApiCacheCachedTracks();
+
 class CacheStatsDto {
   final double usedMb;
   final int limitMb;

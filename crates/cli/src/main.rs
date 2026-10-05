@@ -134,16 +134,7 @@ async fn main() -> Result<()> {
                 .into_iter()
                 .next()
                 .context("трек не найден")?;
-            let meta = TrackMeta {
-                source: "yandex".into(),
-                id: t.key.id.clone(),
-                title: t.full_title(),
-                artists: t.artists.iter().map(|a| a.name.clone()).collect(),
-                album: t.album.as_ref().map(|a| a.title.clone()),
-                year: t.album.as_ref().and_then(|a| a.year),
-                cover_url: t.cover_url.clone(),
-                duration_ms: t.duration_ms,
-            };
+            let meta = TrackMeta::from_track(&t);
 
             let provider = yandex.clone();
             let resolver: Resolver = Arc::new(move |id: String| {

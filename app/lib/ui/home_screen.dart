@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
+import '../audio/downloads.dart';
+import '../src/rust/api/cache.dart';
 import 'cache_dialog.dart';
 import 'deck.dart';
+import 'my_music_tab.dart';
 import 'errors.dart';
 import 'player_bar.dart';
 import 'track_list.dart';
@@ -39,10 +42,17 @@ class HomeScreen extends StatelessWidget {
         TrackList(load: likedTracks, player: player),
         _PlaylistsTab(player: player, eq: eq),
         _SearchTab(player: player),
+        // Из кэша, без сети. Перезагружается, когда меняется состав кэша.
+        TrackList(
+          key: ValueKey(DownloadsScope.of(context).version),
+          load: cachedTracks,
+          player: player,
+        ),
+        MyMusicTab(player: player),
       ],
     );
     return DefaultTabController(
-      length: 4,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: FutureBuilder<AccountDto>(
@@ -73,6 +83,8 @@ class HomeScreen extends StatelessWidget {
               Tab(text: 'Мне нравится'),
               Tab(text: 'Плейлисты'),
               Tab(text: 'Поиск'),
+              Tab(text: 'Скачанное'),
+              Tab(text: 'Моя музыка'),
             ],
           ),
         ),

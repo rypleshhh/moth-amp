@@ -30,6 +30,7 @@ Future<void> main() async {
   }
   final downloads = DownloadController();
   downloads.refresh();
+  downloads.backfillMeta();
   runApp(MusicApp(downloads: downloads));
 }
 

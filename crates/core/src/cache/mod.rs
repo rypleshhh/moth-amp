@@ -85,6 +85,12 @@ pub struct Cache {
     index: Mutex<Index>,
 }
 
+/// Трек Яндекса (или старая запись без метаданных) — играет только при
+/// подтверждённом Плюсе. Собственные треки пользователя от подписки не зависят.
+fn needs_plus(entry: &Entry) -> bool {
+    entry.meta.as_ref().is_none_or(|m| m.source == "yandex")
+}
+
 /// Расширение файла по кодеку из API.
 fn extension(codec: &str) -> &'static str {
     match codec {
@@ -167,12 +173,13 @@ impl Cache {
     /// Путь к файлу трека, если он в кэше и играть из кэша разрешено.
     /// Обновляет время последнего доступа.
     pub fn lookup(&self, track_id: &str) -> Option<(PathBuf, Entry)> {
-        if !self.playback_allowed() {
-            return None;
-        }
+        let plus_ok = self.playback_allowed();
         let found = {
             let mut index = self.index.lock().unwrap();
             let entry = index.entries.get_mut(track_id)?;
+            if needs_plus(entry) && !plus_ok {
+                return None;
+            }
             entry.last_access = now_unix();
             entry.clone()
         };
@@ -271,6 +278,43 @@ impl Cache {
         list
     }
 
+    /// id треков, попавших в кэш без метаданных (до появления тегов).
+    pub fn missing_meta(&self) -> Vec<String> {
+        self.index
+            .lock()
+            .unwrap()
+            .entries
+            .iter()
+            .filter(|(_, e)| e.meta.is_none())
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
+    /// Дописать метаданные: теги в файл и запись в индекс.
+    pub fn attach_meta(&self, track_id: &str, meta: TrackMeta, cover_jpeg: Option<&[u8]>) -> Result<()> {
+        let Some(file) = self
+            .index
+            .lock()
+            .unwrap()
+            .entries
+            .get(track_id)
+            .map(|e| e.file.clone())
+        else {
+            return Ok(());
+        };
+        let path = self.tracks_dir().join(file);
+        // Теги не критичны: если формат не поддержан, метаданные всё равно в индексе.
+        let _ = tags::write_tags(&path, &meta, cover_jpeg);
+        let size = fs::metadata(&path).map(|m| m.len()).ok();
+        if let Some(entry) = self.index.lock().unwrap().entries.get_mut(track_id) {
+            entry.meta = Some(meta);
+            if let Some(size) = size {
+                entry.size = size;
+            }
+        }
+        self.save()
+    }
+
     /// Папка с файлами треков.
     pub fn folder(&self) -> PathBuf {
         self.tracks_dir()
@@ -316,10 +360,28 @@ impl Cache {
         self.save()
     }
 
-    /// Выход из аккаунта: удалить треки и отметку о подписке.
+    /// Выход из аккаунта Яндекса: удалить треки Яндекса и отметку о подписке.
+    /// Собственные треки пользователя остаются.
     pub fn wipe_account(&self) -> Result<()> {
-        self.index.lock().unwrap().plus = None;
-        self.clear()
+        let files: Vec<String> = {
+            let mut index = self.index.lock().unwrap();
+            index.plus = None;
+            let yandex: Vec<String> = index
+                .entries
+                .iter()
+                .filter(|(_, e)| needs_plus(e))
+                .map(|(id, _)| id.clone())
+                .collect();
+            yandex
+                .iter()
+                .filter_map(|id| index.entries.remove(id))
+                .map(|e| e.file)
+                .collect()
+        };
+        for file in files {
+            let _ = fs::remove_file(self.tracks_dir().join(file));
+        }
+        self.save()
     }
 }
 
@@ -420,6 +482,32 @@ mod tests {
         assert_eq!(cache.stats().tracks, 0);
         assert!(!cache.playback_allowed());
         assert!(!dir.0.join("tracks").join("1.mp3").exists());
+    }
+
+    #[test]
+    fn own_tracks_do_not_depend_on_subscription() {
+        let dir = TempDir::new("own");
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        add(&cache, "ya", 5);
+        let part = cache.part_path("mine");
+        fs::write(&part, b"x").unwrap();
+        let meta = TrackMeta {
+            source: "s3".into(),
+            id: "mine".into(),
+            ..Default::default()
+        };
+        cache.commit("mine", &part, "flac", None, Some(meta), true).unwrap();
+
+        // Без Плюса: свой трек играет, трек Яндекса — нет.
+        assert!(cache.lookup("mine").is_some());
+        assert!(cache.lookup("ya").is_none());
+
+        // Выход из аккаунта стирает только треки Яндекса.
+        cache.confirm_plus(true).unwrap();
+        cache.wipe_account().unwrap();
+        assert!(cache.contains("mine"));
+        assert!(!cache.contains("ya"));
+        assert!(dir.0.join("tracks").join("mine.flac").exists());
     }
 
     #[test]

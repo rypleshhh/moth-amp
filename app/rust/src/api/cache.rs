@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 
 use anyhow::{anyhow, Result};
-use moth_core::cache::proxy::{Proxy, ResolvedTrack, Resolver};
+use moth_core::cache::proxy::{fetch_cover, Proxy, ResolvedTrack, Resolver};
 use moth_core::cache::Cache;
 use moth_core::model::{Quality, StreamInfo, TrackMeta};
 use moth_core::provider::Provider;
@@ -50,7 +50,7 @@ pub struct CacheStatsDto {
 
 fn meta_from(t: &TrackDto) -> TrackMeta {
     TrackMeta {
-        source: "yandex".into(),
+        source: t.source.clone(),
         id: t.id.clone(),
         title: t.title.clone(),
         artists: t.artist_names.clone(),
@@ -75,10 +75,17 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
         let cache = Arc::new(Cache::open(Path::new(&dir), u64::from(default_limit_mb) * MB)?);
         let resolver: Resolver = Arc::new(|id: String| {
             Box::pin(async move {
-                let meta = META.lock().unwrap().get(&id).cloned();
+                let mut meta = META.lock().unwrap().get(&id).cloned();
                 let pending = PENDING.lock().unwrap().remove(&id);
                 let stream = match pending {
                     Some(info) => info,
+                    None if meta.as_ref().is_some_and(|m| m.source == "s3") => {
+                        let (info, fresh) = super::s3::resolve(&id)
+                            .await
+                            .map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
+                        meta = Some(fresh);
+                        info
+                    }
                     None => {
                         let p = provider()
                             .map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
@@ -114,10 +121,16 @@ pub async fn play_source(track: TrackDto) -> Result<PlaySourceDto> {
                 });
             }
         }
-        let info = provider()?.stream(&track.id, Quality::High).await?;
+        let info = if track.source == "s3" {
+            let (info, meta) = super::s3::resolve(&track.id).await?;
+            META.lock().unwrap().insert(track.id.clone(), meta);
+            info
+        } else {
+            remember_meta(&track);
+            provider()?.stream(&track.id, Quality::High).await?
+        };
         let url = match state {
             Some(state) if state.cache.auto_cache() => {
-                remember_meta(&track);
                 PENDING
                     .lock()
                     .unwrap()
@@ -197,4 +210,54 @@ pub(crate) fn wipe() {
     if let Some(s) = STATE.get() {
         let _ = s.cache.wipe_account();
     }
+}
+
+/// Дописать метаданные и теги трекам, попавшим в кэш без них.
+/// Возвращает, скольким трекам дописано. Нужна сеть.
+pub async fn cache_backfill_meta() -> Result<u32> {
+    run(async {
+        let state = state()?;
+        let ids = state.cache.missing_meta();
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let tracks = provider()?.api().tracks(&ids).await?;
+        let http = reqwest::Client::builder()
+            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
+            .build()?;
+        let mut done = 0;
+        for t in tracks {
+            let meta = TrackMeta::from_track(&t);
+            let cover = fetch_cover(&http, &meta).await;
+            state.cache.attach_meta(&t.key.id, meta, cover.as_deref())?;
+            done += 1;
+        }
+        Ok(done)
+    })
+    .await
+}
+
+/// Треки в кэше с метаданными — список «Скачанное», работает без сети.
+/// Сначала недавно игравшие.
+pub fn cached_tracks() -> Result<Vec<TrackDto>> {
+    Ok(state()?
+        .cache
+        .cached_tracks()
+        .into_iter()
+        .map(|(id, entry)| {
+            let meta = entry.meta.unwrap_or_default();
+            TrackDto {
+                source: if meta.source.is_empty() { "yandex".into() } else { meta.source.clone() },
+                title: if meta.title.is_empty() { id.clone() } else { meta.title },
+                artists: meta.artists.join(", "),
+                artist_names: meta.artists,
+                album: meta.album,
+                year: meta.year,
+                duration_ms: meta.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
+                available: true,
+                cover_url: meta.cover_url,
+                id,
+            }
+        })
+        .collect())
 }

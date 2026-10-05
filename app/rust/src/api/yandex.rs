@@ -84,6 +84,8 @@ pub struct TrackDto {
     pub duration_ms: Option<u32>,
     pub available: bool,
     pub cover_url: Option<String>,
+    /// Откуда трек: `yandex` или `s3` (собственная библиотека).
+    pub source: String,
 }
 
 pub struct PlaylistDto {
@@ -122,6 +124,7 @@ fn track_dto(t: Track) -> TrackDto {
         duration_ms: t.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
         available: t.available,
         cover_url: t.cover_url,
+        source: "yandex".into(),
     }
 }
 

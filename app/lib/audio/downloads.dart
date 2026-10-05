@@ -9,6 +9,9 @@ class DownloadController extends ChangeNotifier {
   final Set<String> _cached = {};
   final Set<String> _downloading = {};
 
+  /// Растёт при каждом изменении состава кэша (для перезагрузки «Скачанного»).
+  int version = 0;
+
   bool isCached(String id) => _cached.contains(id);
   bool isDownloading(String id) => _downloading.contains(id);
 
@@ -16,12 +19,27 @@ class DownloadController extends ChangeNotifier {
   Future<void> refresh() async {
     try {
       final ids = await cachedIds();
-      _cached
-        ..clear()
-        ..addAll(ids);
-      notifyListeners();
+      if (ids.length != _cached.length || !ids.every(_cached.contains)) {
+        _cached
+          ..clear()
+          ..addAll(ids);
+        version++;
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('cachedIds: $e');
+    }
+  }
+
+  /// Дописать метаданные старым записям кэша (один раз за запуск, в фоне).
+  Future<void> backfillMeta() async {
+    try {
+      if (await cacheBackfillMeta() > 0) {
+        version++;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('cacheBackfillMeta: $e');
     }
   }
 
@@ -33,6 +51,7 @@ class DownloadController extends ChangeNotifier {
     try {
       await cacheDownload(track: track);
       _cached.add(track.id);
+      version++;
       return null;
     } catch (e) {
       return errorText(e);

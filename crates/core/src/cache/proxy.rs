@@ -432,7 +432,7 @@ async fn write_task(
 }
 
 /// Обложка покрупнее для тегов (в списках — 100×100, тут 600×600).
-async fn fetch_cover(http: &reqwest::Client, meta: &TrackMeta) -> Option<Vec<u8>> {
+pub async fn fetch_cover(http: &reqwest::Client, meta: &TrackMeta) -> Option<Vec<u8>> {
     let url = meta.cover_url.as_deref()?;
     let url = match url.rsplit_once('/') {
         Some((base, size)) if size.contains('x') => format!("{base}/600x600"),

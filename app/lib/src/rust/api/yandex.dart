@@ -159,6 +159,9 @@ class TrackDto {
   final bool available;
   final String? coverUrl;
 
+  /// Откуда трек: `yandex` или `s3` (собственная библиотека).
+  final String source;
+
   const TrackDto({
     required this.id,
     required this.title,
@@ -169,6 +172,7 @@ class TrackDto {
     this.durationMs,
     required this.available,
     this.coverUrl,
+    required this.source,
   });
 
   @override
@@ -181,7 +185,8 @@ class TrackDto {
       year.hashCode ^
       durationMs.hashCode ^
       available.hashCode ^
-      coverUrl.hashCode;
+      coverUrl.hashCode ^
+      source.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -196,5 +201,6 @@ class TrackDto {
           year == other.year &&
           durationMs == other.durationMs &&
           available == other.available &&
-          coverUrl == other.coverUrl;
+          coverUrl == other.coverUrl &&
+          source == other.source;
 }

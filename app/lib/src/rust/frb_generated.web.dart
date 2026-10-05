@@ -8,6 +8,7 @@
 
 import 'api/cache.dart';
 import 'api/eq.dart';
+import 'api/s3.dart';
 import 'api/wave.dart';
 import 'api/yandex.dart';
 
@@ -43,6 +44,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EqStateDto dco_decode_box_autoadd_eq_state_dto(dynamic raw);
+
+  @protected
+  S3ConfigDto dco_decode_box_autoadd_s_3_config_dto(dynamic raw);
 
   @protected
   TrackDto dco_decode_box_autoadd_track_dto(dynamic raw);
@@ -117,6 +121,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlaylistDto dco_decode_playlist_dto(dynamic raw);
 
   @protected
+  S3ConfigDto dco_decode_s_3_config_dto(dynamic raw);
+
+  @protected
+  S3StatusDto dco_decode_s_3_status_dto(dynamic raw);
+
+  @protected
+  S3UploadResultDto dco_decode_s_3_upload_result_dto(dynamic raw);
+
+  @protected
   StreamDto dco_decode_stream_dto(dynamic raw);
 
   @protected
@@ -150,6 +163,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EqStateDto sse_decode_box_autoadd_eq_state_dto(SseDeserializer deserializer);
+
+  @protected
+  S3ConfigDto sse_decode_box_autoadd_s_3_config_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   TrackDto sse_decode_box_autoadd_track_dto(SseDeserializer deserializer);
@@ -224,6 +242,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlaylistDto sse_decode_playlist_dto(SseDeserializer deserializer);
 
   @protected
+  S3ConfigDto sse_decode_s_3_config_dto(SseDeserializer deserializer);
+
+  @protected
+  S3StatusDto sse_decode_s_3_status_dto(SseDeserializer deserializer);
+
+  @protected
+  S3UploadResultDto sse_decode_s_3_upload_result_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   StreamDto sse_decode_stream_dto(SseDeserializer deserializer);
 
   @protected
@@ -262,6 +291,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_eq_state_dto(
     EqStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_s_3_config_dto(
+    S3ConfigDto self,
     SseSerializer serializer,
   );
 
@@ -354,6 +389,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_playlist_dto(PlaylistDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_s_3_config_dto(S3ConfigDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_s_3_status_dto(S3StatusDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_s_3_upload_result_dto(
+    S3UploadResultDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_stream_dto(StreamDto self, SseSerializer serializer);

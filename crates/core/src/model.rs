@@ -114,6 +114,26 @@ pub struct TrackMeta {
     pub duration_ms: Option<u64>,
 }
 
+impl TrackMeta {
+    pub fn from_track(t: &Track) -> Self {
+        let source = match t.key.source {
+            Source::Yandex => "yandex",
+            Source::Subsonic => "subsonic",
+            Source::Local => "local",
+        };
+        Self {
+            source: source.into(),
+            id: t.key.id.clone(),
+            title: t.full_title(),
+            artists: t.artists.iter().map(|a| a.name.clone()).collect(),
+            album: t.album.as_ref().map(|a| a.title.clone()),
+            year: t.album.as_ref().and_then(|a| a.year),
+            cover_url: t.cover_url.clone(),
+            duration_ms: t.duration_ms,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub uid: String,
