@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
+import 'equalizer_screen.dart';
 import 'track_list.dart';
 
 class PlayerBar extends StatelessWidget {
-  const PlayerBar({super.key, required this.player});
+  const PlayerBar({super.key, required this.player, required this.eq});
 
   final PlayerController player;
+  final EqController eq;
 
   @override
   Widget build(BuildContext context) {
@@ -26,40 +29,49 @@ class PlayerBar extends StatelessWidget {
                 _ProgressBar(player: player),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  // Левая и правая части одинаковой ширины, поэтому кнопки
+                  // управления всегда точно по центру.
                   child: Row(
                     children: [
-                      _Cover(url: track?.coverUrl),
-                      const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              track?.title ?? 'Ничего не играет',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall,
-                            ),
-                            Text(
-                              player.error ??
-                                  [
-                                    track?.artists ?? '',
-                                    if (stream != null)
-                                      '${stream.codec}'
-                                          '${stream.bitrateKbps != null ? ' ${stream.bitrateKbps}' : ''}'
-                                          '${stream.isPreview ? ' · превью' : ''}',
-                                  ].where((s) => s.isNotEmpty).join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: player.error != null
-                                    ? theme.colorScheme.error
-                                    : null,
+                            _Cover(url: track?.coverUrl),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track?.title ?? 'Ничего не играет',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  Text(
+                                    player.error ??
+                                        [
+                                          track?.artists ?? '',
+                                          if (stream != null)
+                                            '${stream.codec}'
+                                                '${stream.bitrateKbps != null ? ' ${stream.bitrateKbps}' : ''}'
+                                                '${stream.isPreview ? ' · превью' : ''}',
+                                        ].where((s) => s.isNotEmpty).join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: player.error != null
+                                          ? theme.colorScheme.error
+                                          : null,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.skip_previous),
                         onPressed: track == null ? null : player.previous,
@@ -86,7 +98,16 @@ class PlayerBar extends StatelessWidget {
                         icon: const Icon(Icons.skip_next),
                         onPressed: track == null ? null : player.next,
                       ),
-                      _VolumeSlider(player: player),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _EqualizerButton(eq: eq),
+                            Flexible(child: _VolumeSlider(player: player)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -199,15 +220,41 @@ class _VolumeSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 120,
-      child: StreamBuilder<double>(
-        stream: player.volume,
-        initialData: 100,
-        builder: (context, snap) => Slider(
-          value: (snap.data ?? 100).clamp(0, 100),
-          max: 100,
-          onChanged: player.setVolume,
-        ),
+      // Перерисовывается вместе с PlayerBar (ListenableBuilder по player).
+      child: Slider(
+        value: player.userVolume,
+        max: 100,
+        onChanged: player.setVolume,
       ),
+    );
+  }
+}
+
+class _EqualizerButton extends StatelessWidget {
+  const _EqualizerButton({required this.eq});
+
+  final EqController eq;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: eq,
+      builder: (context, _) {
+        final s = eq.current;
+        // Подсветка, только если эквалайзер реально меняет звук.
+        final active =
+            s.enabled &&
+            (s.preampDb.abs() >= 0.01 ||
+                s.bands.any((b) => b.gainDb.abs() >= 0.01));
+        return IconButton(
+          tooltip: 'Эквалайзер',
+          isSelected: active,
+          icon: const Icon(Icons.equalizer),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => EqualizerScreen(eq: eq)),
+          ),
+        );
+      },
     );
   }
 }

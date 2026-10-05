@@ -52,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Image.asset('assets/logo.png', width: 96, height: 96),
+                const SizedBox(height: 12),
                 Text('moth-amp', style: theme.textTheme.headlineMedium),
                 const SizedBox(height: 32),
                 if (code == null) ...[

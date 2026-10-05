@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'audio/eq_controller.dart';
+import 'player/media_controls.dart';
 import 'player/player_controller.dart';
 import 'src/rust/api/yandex.dart';
 import 'src/rust/frb_generated.dart';
@@ -24,7 +26,7 @@ class MusicApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3FA34D),
+          seedColor: const Color(0xFFEDB04A),
           brightness: Brightness.dark,
         ),
       ),
@@ -43,12 +45,24 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   final _player = PlayerController();
+  late final _eq = EqController(_player);
+  late final Future<MediaControls?> _mediaControls = MediaControls.attach(_player);
   late Future<bool> _loggedIn = isLoggedIn();
 
   void _refresh() => setState(() => _loggedIn = isLoggedIn());
 
   @override
+  void initState() {
+    super.initState();
+    // Подключаем медиаклавиши сразу, не дожидаясь первого build.
+    _mediaControls.ignore();
+    _eq.load();
+  }
+
+  @override
   void dispose() {
+    _mediaControls.then((c) => c?.dispose());
+    _eq.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -62,7 +76,7 @@ class _RootScreenState extends State<RootScreen> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snap.data!) {
-          return HomeScreen(player: _player, onLogout: _refresh);
+          return HomeScreen(player: _player, eq: _eq, onLogout: _refresh);
         }
         return LoginScreen(onLoggedIn: _refresh);
       },

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
@@ -42,7 +43,6 @@ class PlayerController extends ChangeNotifier {
       _index >= 0 && _index < _queue.length ? _queue[_index] : null;
   Stream<Duration> get position => _player.stream.position;
   Stream<Duration> get duration => _player.stream.duration;
-  Stream<double> get volume => _player.stream.volume;
 
   Future<void> playQueue(List<TrackDto> tracks, int start) async {
     _queue = List.of(tracks);
@@ -55,10 +55,48 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> playOrPause() => _player.playOrPause();
 
+  Future<void> play() => _player.play();
+
+  Future<void> pause() => _player.pause();
+
   Future<void> seek(Duration position) => _player.seek(position);
 
+  double _userVolume = 100;
+  double _preampDb = 0;
+
+  /// Громкость, выставленная пользователем (0–100), без учёта предусилителя.
+  double get userVolume => _userVolume;
+
   /// 0–100.
-  Future<void> setVolume(double value) => _player.setVolume(value);
+  Future<void> setVolume(double value) {
+    _userVolume = value.clamp(0, 100).toDouble();
+    notifyListeners();
+    return _applyVolume();
+  }
+
+  /// Предусилитель эквалайзера. В сборке FFmpeg из media_kit нет фильтра
+  /// `volume`, поэтому усиление применяется громкостью плеера.
+  Future<void> setPreampDb(double db) {
+    _preampDb = db;
+    return _applyVolume();
+  }
+
+  // Громкость mpv кубическая: амплитуда = (volume/100)^3, поэтому
+  // усиление в дБ переводится в множитель громкости 10^(дБ/60).
+  // Выше 100 не поднимаем: положительный предусилитель упирается в потолок.
+  Future<void> _applyVolume() {
+    final v = _userVolume * math.pow(10, _preampDb / 60);
+    return _player.setVolume(v.clamp(0, 100).toDouble());
+  }
+
+  /// Цепочка звуковых фильтров mpv (`af`); пустая строка — без обработки.
+  /// Свойство сохраняется между треками.
+  Future<void> setAudioFilter(String af) async {
+    final platform = _player.platform;
+    if (platform is NativePlayer) {
+      await platform.setProperty('af', af);
+    }
+  }
 
   int _findAvailable(int from, int step) {
     for (var i = from; i >= 0 && i < _queue.length; i += step) {

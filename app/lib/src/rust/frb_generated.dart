@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/eq.dart';
 import 'api/yandex.dart';
 
 import 'dart:async';
@@ -69,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1577011362;
+  int get rustContentHash => 1040347359;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -82,6 +83,30 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
 abstract class RustLibApi extends BaseApi {
   Future<AccountDto> crateApiYandexAccount();
+
+  double crateApiEqEqAutoPreamp({required EqSettingsDto settings});
+
+  List<EqPresetDto> crateApiEqEqBuiltinPresets({required EqModeDto mode});
+
+  double crateApiEqEqEffectivePreamp({required EqSettingsDto settings});
+
+  EqSettingsDto crateApiEqEqFlat({required EqModeDto mode});
+
+  Future<EqStateDto> crateApiEqEqLoad({required String path});
+
+  EqSettingsDto crateApiEqEqParseAutoeq({required String text});
+
+  Future<void> crateApiEqEqSave({
+    required String path,
+    required EqStateDto state,
+  });
+
+  String crateApiEqEqToFilter({required EqSettingsDto settings});
+
+  EqSettingsDto crateApiEqEqWithMode({
+    required EqSettingsDto settings,
+    required EqModeDto mode,
+  });
 
   Future<AccountDto> crateApiYandexFinishLogin();
 
@@ -143,6 +168,236 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "account", argNames: []);
 
   @override
+  double crateApiEqEqAutoPreamp({required EqSettingsDto settings}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_f_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqAutoPreampConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqAutoPreampConstMeta =>
+      const TaskConstMeta(debugName: "eq_auto_preamp", argNames: ["settings"]);
+
+  @override
+  List<EqPresetDto> crateApiEqEqBuiltinPresets({required EqModeDto mode}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_eq_mode_dto(mode, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_eq_preset_dto,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqBuiltinPresetsConstMeta,
+        argValues: [mode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqBuiltinPresetsConstMeta =>
+      const TaskConstMeta(debugName: "eq_builtin_presets", argNames: ["mode"]);
+
+  @override
+  double crateApiEqEqEffectivePreamp({required EqSettingsDto settings}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_f_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqEffectivePreampConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqEffectivePreampConstMeta =>
+      const TaskConstMeta(
+        debugName: "eq_effective_preamp",
+        argNames: ["settings"],
+      );
+
+  @override
+  EqSettingsDto crateApiEqEqFlat({required EqModeDto mode}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_eq_mode_dto(mode, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_eq_settings_dto,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqFlatConstMeta,
+        argValues: [mode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqFlatConstMeta =>
+      const TaskConstMeta(debugName: "eq_flat", argNames: ["mode"]);
+
+  @override
+  Future<EqStateDto> crateApiEqEqLoad({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_eq_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEqEqLoadConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqLoadConstMeta =>
+      const TaskConstMeta(debugName: "eq_load", argNames: ["path"]);
+
+  @override
+  EqSettingsDto crateApiEqEqParseAutoeq({required String text}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(text, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_eq_settings_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEqEqParseAutoeqConstMeta,
+        argValues: [text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqParseAutoeqConstMeta =>
+      const TaskConstMeta(debugName: "eq_parse_autoeq", argNames: ["text"]);
+
+  @override
+  Future<void> crateApiEqEqSave({
+    required String path,
+    required EqStateDto state,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_box_autoadd_eq_state_dto(state, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEqEqSaveConstMeta,
+        argValues: [path, state],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqSaveConstMeta =>
+      const TaskConstMeta(debugName: "eq_save", argNames: ["path", "state"]);
+
+  @override
+  String crateApiEqEqToFilter({required EqSettingsDto settings}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqToFilterConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqToFilterConstMeta =>
+      const TaskConstMeta(debugName: "eq_to_filter", argNames: ["settings"]);
+
+  @override
+  EqSettingsDto crateApiEqEqWithMode({
+    required EqSettingsDto settings,
+    required EqModeDto mode,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
+          sse_encode_eq_mode_dto(mode, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_eq_settings_dto,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEqEqWithModeConstMeta,
+        argValues: [settings, mode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEqEqWithModeConstMeta => const TaskConstMeta(
+    debugName: "eq_with_mode",
+    argNames: ["settings", "mode"],
+  );
+
+  @override
   Future<AccountDto> crateApiYandexFinishLogin() {
     return handler.executeNormal(
       NormalTask(
@@ -151,7 +406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 11,
             port: port_,
           );
         },
@@ -178,7 +433,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 12,
             port: port_,
           );
         },
@@ -205,7 +460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 13,
             port: port_,
           );
         },
@@ -232,7 +487,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 14,
             port: port_,
           );
         },
@@ -259,7 +514,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 15,
             port: port_,
           );
         },
@@ -287,7 +542,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 16,
             port: port_,
           );
         },
@@ -314,7 +569,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 17,
             port: port_,
           );
         },
@@ -342,7 +597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 18,
             port: port_,
           );
         },
@@ -369,7 +624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 19,
             port: port_,
           );
         },
@@ -401,7 +656,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 20,
             port: port_,
           );
         },
@@ -453,6 +708,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EqSettingsDto dco_decode_box_autoadd_eq_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_eq_settings_dto(raw);
+  }
+
+  @protected
+  EqStateDto dco_decode_box_autoadd_eq_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_eq_state_dto(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -469,6 +736,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       verificationUrl: dco_decode_String(arr[1]),
       expiresIn: dco_decode_u_32(arr[2]),
     );
+  }
+
+  @protected
+  EqBandDto dco_decode_eq_band_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return EqBandDto(
+      kind: dco_decode_filter_kind_dto(arr[0]),
+      freqHz: dco_decode_f_32(arr[1]),
+      gainDb: dco_decode_f_32(arr[2]),
+      q: dco_decode_f_32(arr[3]),
+    );
+  }
+
+  @protected
+  EqModeDto dco_decode_eq_mode_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EqModeDto.values[raw as int];
+  }
+
+  @protected
+  EqPresetDto dco_decode_eq_preset_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return EqPresetDto(
+      name: dco_decode_String(arr[0]),
+      settings: dco_decode_eq_settings_dto(arr[1]),
+    );
+  }
+
+  @protected
+  EqSettingsDto dco_decode_eq_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return EqSettingsDto(
+      enabled: dco_decode_bool(arr[0]),
+      mode: dco_decode_eq_mode_dto(arr[1]),
+      preampDb: dco_decode_f_32(arr[2]),
+      bands: dco_decode_list_eq_band_dto(arr[3]),
+    );
+  }
+
+  @protected
+  EqStateDto dco_decode_eq_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return EqStateDto(
+      current: dco_decode_eq_settings_dto(arr[0]),
+      userPresets: dco_decode_list_eq_preset_dto(arr[1]),
+    );
+  }
+
+  @protected
+  double dco_decode_f_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  FilterKindDto dco_decode_filter_kind_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FilterKindDto.values[raw as int];
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  List<EqBandDto> dco_decode_list_eq_band_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_eq_band_dto).toList();
+  }
+
+  @protected
+  List<EqPresetDto> dco_decode_list_eq_preset_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_eq_preset_dto).toList();
   }
 
   @protected
@@ -593,6 +948,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EqSettingsDto sse_decode_box_autoadd_eq_settings_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_eq_settings_dto(deserializer));
+  }
+
+  @protected
+  EqStateDto sse_decode_box_autoadd_eq_state_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_eq_state_dto(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
@@ -609,6 +978,104 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       verificationUrl: var_verificationUrl,
       expiresIn: var_expiresIn,
     );
+  }
+
+  @protected
+  EqBandDto sse_decode_eq_band_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_filter_kind_dto(deserializer);
+    var var_freqHz = sse_decode_f_32(deserializer);
+    var var_gainDb = sse_decode_f_32(deserializer);
+    var var_q = sse_decode_f_32(deserializer);
+    return EqBandDto(
+      kind: var_kind,
+      freqHz: var_freqHz,
+      gainDb: var_gainDb,
+      q: var_q,
+    );
+  }
+
+  @protected
+  EqModeDto sse_decode_eq_mode_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return EqModeDto.values[inner];
+  }
+
+  @protected
+  EqPresetDto sse_decode_eq_preset_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_settings = sse_decode_eq_settings_dto(deserializer);
+    return EqPresetDto(name: var_name, settings: var_settings);
+  }
+
+  @protected
+  EqSettingsDto sse_decode_eq_settings_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_mode = sse_decode_eq_mode_dto(deserializer);
+    var var_preampDb = sse_decode_f_32(deserializer);
+    var var_bands = sse_decode_list_eq_band_dto(deserializer);
+    return EqSettingsDto(
+      enabled: var_enabled,
+      mode: var_mode,
+      preampDb: var_preampDb,
+      bands: var_bands,
+    );
+  }
+
+  @protected
+  EqStateDto sse_decode_eq_state_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_current = sse_decode_eq_settings_dto(deserializer);
+    var var_userPresets = sse_decode_list_eq_preset_dto(deserializer);
+    return EqStateDto(current: var_current, userPresets: var_userPresets);
+  }
+
+  @protected
+  double sse_decode_f_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat32();
+  }
+
+  @protected
+  FilterKindDto sse_decode_filter_kind_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FilterKindDto.values[inner];
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  List<EqBandDto> sse_decode_list_eq_band_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EqBandDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_eq_band_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EqPresetDto> sse_decode_list_eq_preset_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EqPresetDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_eq_preset_dto(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -731,12 +1198,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
-  }
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -766,6 +1227,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_eq_settings_dto(
+    EqSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_eq_settings_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_eq_state_dto(
+    EqStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_eq_state_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -780,6 +1259,92 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.userCode, serializer);
     sse_encode_String(self.verificationUrl, serializer);
     sse_encode_u_32(self.expiresIn, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_band_dto(EqBandDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_filter_kind_dto(self.kind, serializer);
+    sse_encode_f_32(self.freqHz, serializer);
+    sse_encode_f_32(self.gainDb, serializer);
+    sse_encode_f_32(self.q, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_mode_dto(EqModeDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_preset_dto(EqPresetDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_eq_settings_dto(self.settings, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_settings_dto(
+    EqSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_eq_mode_dto(self.mode, serializer);
+    sse_encode_f_32(self.preampDb, serializer);
+    sse_encode_list_eq_band_dto(self.bands, serializer);
+  }
+
+  @protected
+  void sse_encode_eq_state_dto(EqStateDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_eq_settings_dto(self.current, serializer);
+    sse_encode_list_eq_preset_dto(self.userPresets, serializer);
+  }
+
+  @protected
+  void sse_encode_f_32(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat32(self);
+  }
+
+  @protected
+  void sse_encode_filter_kind_dto(
+    FilterKindDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_list_eq_band_dto(
+    List<EqBandDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_eq_band_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_eq_preset_dto(
+    List<EqPresetDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_eq_preset_dto(item, serializer);
+    }
   }
 
   @protected
@@ -880,11 +1445,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
   }
 }

@@ -28,6 +28,12 @@ pub enum Error {
 
     #[error("неожиданный ответ сервера: {0}")]
     Unexpected(String),
+
+    #[error("не удалось разобрать пресет: {0}")]
+    InvalidPreset(String),
+
+    #[error("ошибка файла: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

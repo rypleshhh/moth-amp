@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/eq.dart';
 import 'api/yandex.dart';
 
 import 'dart:async';
@@ -34,10 +35,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  EqSettingsDto dco_decode_box_autoadd_eq_settings_dto(dynamic raw);
+
+  @protected
+  EqStateDto dco_decode_box_autoadd_eq_state_dto(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   DeviceCodeDto dco_decode_device_code_dto(dynamic raw);
+
+  @protected
+  EqBandDto dco_decode_eq_band_dto(dynamic raw);
+
+  @protected
+  EqModeDto dco_decode_eq_mode_dto(dynamic raw);
+
+  @protected
+  EqPresetDto dco_decode_eq_preset_dto(dynamic raw);
+
+  @protected
+  EqSettingsDto dco_decode_eq_settings_dto(dynamic raw);
+
+  @protected
+  EqStateDto dco_decode_eq_state_dto(dynamic raw);
+
+  @protected
+  double dco_decode_f_32(dynamic raw);
+
+  @protected
+  FilterKindDto dco_decode_filter_kind_dto(dynamic raw);
+
+  @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
+  List<EqBandDto> dco_decode_list_eq_band_dto(dynamic raw);
+
+  @protected
+  List<EqPresetDto> dco_decode_list_eq_preset_dto(dynamic raw);
 
   @protected
   List<PlaylistDto> dco_decode_list_playlist_dto(dynamic raw);
@@ -85,10 +122,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  EqSettingsDto sse_decode_box_autoadd_eq_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EqStateDto sse_decode_box_autoadd_eq_state_dto(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   DeviceCodeDto sse_decode_device_code_dto(SseDeserializer deserializer);
+
+  @protected
+  EqBandDto sse_decode_eq_band_dto(SseDeserializer deserializer);
+
+  @protected
+  EqModeDto sse_decode_eq_mode_dto(SseDeserializer deserializer);
+
+  @protected
+  EqPresetDto sse_decode_eq_preset_dto(SseDeserializer deserializer);
+
+  @protected
+  EqSettingsDto sse_decode_eq_settings_dto(SseDeserializer deserializer);
+
+  @protected
+  EqStateDto sse_decode_eq_state_dto(SseDeserializer deserializer);
+
+  @protected
+  double sse_decode_f_32(SseDeserializer deserializer);
+
+  @protected
+  FilterKindDto sse_decode_filter_kind_dto(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  List<EqBandDto> sse_decode_list_eq_band_dto(SseDeserializer deserializer);
+
+  @protected
+  List<EqPresetDto> sse_decode_list_eq_preset_dto(SseDeserializer deserializer);
 
   @protected
   List<PlaylistDto> sse_decode_list_playlist_dto(SseDeserializer deserializer);
@@ -124,9 +199,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -142,10 +214,58 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_eq_settings_dto(
+    EqSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_eq_state_dto(
+    EqStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_device_code_dto(DeviceCodeDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_band_dto(EqBandDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_mode_dto(EqModeDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_preset_dto(EqPresetDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_settings_dto(EqSettingsDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_eq_state_dto(EqStateDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_f_32(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_filter_kind_dto(FilterKindDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_eq_band_dto(
+    List<EqBandDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_eq_preset_dto(
+    List<EqPresetDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_playlist_dto(
@@ -185,9 +305,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class

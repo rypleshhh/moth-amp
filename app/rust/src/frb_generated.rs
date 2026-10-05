@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1577011362;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1040347359;
 
 // Section: executor
 
@@ -79,6 +79,290 @@ fn wire__crate__api__yandex__account_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__eq__eq_auto_preamp_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_auto_preamp",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::eq::EqSettingsDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_auto_preamp(api_settings))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__eq__eq_builtin_presets_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_builtin_presets",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mode = <crate::api::eq::EqModeDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_builtin_presets(api_mode))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__eq__eq_effective_preamp_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_effective_preamp",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::eq::EqSettingsDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_effective_preamp(api_settings))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__eq__eq_flat_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_flat",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mode = <crate::api::eq::EqModeDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_flat(api_mode))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__eq__eq_load_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_load",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::eq::eq_load(api_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__eq__eq_parse_autoeq_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_parse_autoeq",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                (move || {
+                    let output_ok = crate::api::eq::eq_parse_autoeq(api_text)?;
+                    std::result::Result::Ok(output_ok)
+                })(),
+            )
+        },
+    )
+}
+fn wire__crate__api__eq__eq_save_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_save",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_state = <crate::api::eq::EqStateDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::eq::eq_save(api_path, api_state)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__eq__eq_to_filter_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_to_filter",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::eq::EqSettingsDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_to_filter(api_settings))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__eq__eq_with_mode_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "eq_with_mode",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::eq::EqSettingsDto>::sse_decode(&mut deserializer);
+            let api_mode = <crate::api::eq::EqModeDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::eq::eq_with_mode(api_settings, api_mode))?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -490,6 +774,126 @@ impl SseDecode for crate::api::yandex::DeviceCodeDto {
     }
 }
 
+impl SseDecode for crate::api::eq::EqBandDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <crate::api::eq::FilterKindDto>::sse_decode(deserializer);
+        let mut var_freqHz = <f32>::sse_decode(deserializer);
+        let mut var_gainDb = <f32>::sse_decode(deserializer);
+        let mut var_q = <f32>::sse_decode(deserializer);
+        return crate::api::eq::EqBandDto {
+            kind: var_kind,
+            freq_hz: var_freqHz,
+            gain_db: var_gainDb,
+            q: var_q,
+        };
+    }
+}
+
+impl SseDecode for crate::api::eq::EqModeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::eq::EqModeDto::Graphic10,
+            1 => crate::api::eq::EqModeDto::Graphic18,
+            2 => crate::api::eq::EqModeDto::Parametric,
+            _ => unreachable!("Invalid variant for EqModeDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::eq::EqPresetDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_settings = <crate::api::eq::EqSettingsDto>::sse_decode(deserializer);
+        return crate::api::eq::EqPresetDto {
+            name: var_name,
+            settings: var_settings,
+        };
+    }
+}
+
+impl SseDecode for crate::api::eq::EqSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_mode = <crate::api::eq::EqModeDto>::sse_decode(deserializer);
+        let mut var_preampDb = <f32>::sse_decode(deserializer);
+        let mut var_bands = <Vec<crate::api::eq::EqBandDto>>::sse_decode(deserializer);
+        return crate::api::eq::EqSettingsDto {
+            enabled: var_enabled,
+            mode: var_mode,
+            preamp_db: var_preampDb,
+            bands: var_bands,
+        };
+    }
+}
+
+impl SseDecode for crate::api::eq::EqStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_current = <crate::api::eq::EqSettingsDto>::sse_decode(deserializer);
+        let mut var_userPresets = <Vec<crate::api::eq::EqPresetDto>>::sse_decode(deserializer);
+        return crate::api::eq::EqStateDto {
+            current: var_current,
+            user_presets: var_userPresets,
+        };
+    }
+}
+
+impl SseDecode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::eq::FilterKindDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::eq::FilterKindDto::Peaking,
+            1 => crate::api::eq::FilterKindDto::LowShelf,
+            2 => crate::api::eq::FilterKindDto::HighShelf,
+            _ => unreachable!("Invalid variant for FilterKindDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for Vec<crate::api::eq::EqBandDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::eq::EqBandDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::eq::EqPresetDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::eq::EqPresetDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::yandex::PlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -619,13 +1023,6 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
-impl SseDecode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -636,16 +1033,18 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__yandex__account_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__yandex__finish_login_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__yandex__init_app_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__yandex__is_logged_in_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__yandex__liked_tracks_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__yandex__logout_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__yandex__playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__yandex__playlists_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__yandex__search_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__yandex__start_login_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__yandex__stream_url_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__eq__eq_load_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__eq__eq_save_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__yandex__finish_login_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__yandex__init_app_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__yandex__is_logged_in_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__yandex__liked_tracks_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__yandex__logout_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__yandex__playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__yandex__playlists_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__yandex__search_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__yandex__start_login_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__yandex__stream_url_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -658,6 +1057,13 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
+        2 => wire__crate__api__eq__eq_auto_preamp_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__eq__eq_builtin_presets_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__eq__eq_effective_preamp_impl(ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__eq__eq_flat_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__eq__eq_parse_autoeq_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__eq__eq_to_filter_impl(ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__eq__eq_with_mode_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -705,6 +1111,114 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::DeviceCodeDto>
     for crate::api::yandex::DeviceCodeDto
 {
     fn into_into_dart(self) -> crate::api::yandex::DeviceCodeDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::EqBandDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.freq_hz.into_into_dart().into_dart(),
+            self.gain_db.into_into_dart().into_dart(),
+            self.q.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::EqBandDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::EqBandDto> for crate::api::eq::EqBandDto {
+    fn into_into_dart(self) -> crate::api::eq::EqBandDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::EqModeDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Graphic10 => 0.into_dart(),
+            Self::Graphic18 => 1.into_dart(),
+            Self::Parametric => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::EqModeDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::EqModeDto> for crate::api::eq::EqModeDto {
+    fn into_into_dart(self) -> crate::api::eq::EqModeDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::EqPresetDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.settings.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::EqPresetDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::EqPresetDto>
+    for crate::api::eq::EqPresetDto
+{
+    fn into_into_dart(self) -> crate::api::eq::EqPresetDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::EqSettingsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.enabled.into_into_dart().into_dart(),
+            self.mode.into_into_dart().into_dart(),
+            self.preamp_db.into_into_dart().into_dart(),
+            self.bands.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::EqSettingsDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::EqSettingsDto>
+    for crate::api::eq::EqSettingsDto
+{
+    fn into_into_dart(self) -> crate::api::eq::EqSettingsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::EqStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.current.into_into_dart().into_dart(),
+            self.user_presets.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::EqStateDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::EqStateDto> for crate::api::eq::EqStateDto {
+    fn into_into_dart(self) -> crate::api::eq::EqStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::eq::FilterKindDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Peaking => 0.into_dart(),
+            Self::LowShelf => 1.into_dart(),
+            Self::HighShelf => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::eq::FilterKindDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::eq::FilterKindDto>
+    for crate::api::eq::FilterKindDto
+{
+    fn into_into_dart(self) -> crate::api::eq::FilterKindDto {
         self
     }
 }
@@ -813,6 +1327,110 @@ impl SseEncode for crate::api::yandex::DeviceCodeDto {
     }
 }
 
+impl SseEncode for crate::api::eq::EqBandDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::eq::FilterKindDto>::sse_encode(self.kind, serializer);
+        <f32>::sse_encode(self.freq_hz, serializer);
+        <f32>::sse_encode(self.gain_db, serializer);
+        <f32>::sse_encode(self.q, serializer);
+    }
+}
+
+impl SseEncode for crate::api::eq::EqModeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::eq::EqModeDto::Graphic10 => 0,
+                crate::api::eq::EqModeDto::Graphic18 => 1,
+                crate::api::eq::EqModeDto::Parametric => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::eq::EqPresetDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::eq::EqSettingsDto>::sse_encode(self.settings, serializer);
+    }
+}
+
+impl SseEncode for crate::api::eq::EqSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.enabled, serializer);
+        <crate::api::eq::EqModeDto>::sse_encode(self.mode, serializer);
+        <f32>::sse_encode(self.preamp_db, serializer);
+        <Vec<crate::api::eq::EqBandDto>>::sse_encode(self.bands, serializer);
+    }
+}
+
+impl SseEncode for crate::api::eq::EqStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::eq::EqSettingsDto>::sse_encode(self.current, serializer);
+        <Vec<crate::api::eq::EqPresetDto>>::sse_encode(self.user_presets, serializer);
+    }
+}
+
+impl SseEncode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::eq::FilterKindDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::eq::FilterKindDto::Peaking => 0,
+                crate::api::eq::FilterKindDto::LowShelf => 1,
+                crate::api::eq::FilterKindDto::HighShelf => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for Vec<crate::api::eq::EqBandDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::eq::EqBandDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::eq::EqPresetDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::eq::EqPresetDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::yandex::PlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -912,13 +1530,6 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
-}
-
-impl SseEncode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
 }
 
 #[cfg(not(target_family = "wasm"))]

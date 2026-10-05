@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import 'errors.dart';
@@ -7,9 +8,15 @@ import 'player_bar.dart';
 import 'track_list.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.player, required this.onLogout});
+  const HomeScreen({
+    super.key,
+    required this.player,
+    required this.eq,
+    required this.onLogout,
+  });
 
   final PlayerController player;
+  final EqController eq;
   final VoidCallback onLogout;
 
   Future<void> _logout() async {
@@ -49,20 +56,21 @@ class HomeScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             TrackList(load: likedTracks, player: player),
-            _PlaylistsTab(player: player),
+            _PlaylistsTab(player: player, eq: eq),
             _SearchTab(player: player),
           ],
         ),
-        bottomNavigationBar: PlayerBar(player: player),
+        bottomNavigationBar: PlayerBar(player: player, eq: eq),
       ),
     );
   }
 }
 
 class _PlaylistsTab extends StatefulWidget {
-  const _PlaylistsTab({required this.player});
+  const _PlaylistsTab({required this.player, required this.eq});
 
   final PlayerController player;
+  final EqController eq;
 
   @override
   State<_PlaylistsTab> createState() => _PlaylistsTabState();
@@ -102,7 +110,10 @@ class _PlaylistsTabState extends State<_PlaylistsTab>
                       load: () => playlistTracks(id: p.id),
                       player: widget.player,
                     ),
-                    bottomNavigationBar: PlayerBar(player: widget.player),
+                    bottomNavigationBar: PlayerBar(
+                      player: widget.player,
+                      eq: widget.eq,
+                    ),
                   ),
                 ),
               ),
