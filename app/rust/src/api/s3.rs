@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use moth_core::model::{StreamInfo, TrackMeta};
 use moth_core::s3::{self, LibraryEntry, S3Config, S3Library};
 
-use super::yandex::{run, TrackDto};
+use super::yandex::{run, secrets, TrackDto};
 
 static LIBRARY: RwLock<Option<Arc<S3Library>>> = RwLock::new(None);
 
@@ -43,11 +43,11 @@ fn http() -> Result<reqwest::Client> {
 }
 
 /// Подключённая библиотека (настройки читаются из системного хранилища).
-fn library() -> Result<Option<Arc<S3Library>>> {
+pub(crate) fn library() -> Result<Option<Arc<S3Library>>> {
     if let Some(lib) = LIBRARY.read().unwrap().as_ref() {
         return Ok(Some(lib.clone()));
     }
-    let Some(config) = s3::load_config()? else {
+    let Some(config) = s3::load_config(&*secrets()?)? else {
         return Ok(None);
     };
     let lib = Arc::new(S3Library::new(&config, http()?)?);
@@ -89,7 +89,7 @@ pub async fn s3_connect(config: S3ConfigDto) -> Result<u32> {
         };
         let lib = S3Library::new(&config, http()?)?;
         let count = lib.check().await?;
-        s3::save_config(&config)?;
+        s3::save_config(&*secrets()?, &config)?;
         *LIBRARY.write().unwrap() = Some(Arc::new(lib));
         Ok(u32::try_from(count).unwrap_or(u32::MAX))
     })
@@ -97,7 +97,7 @@ pub async fn s3_connect(config: S3ConfigDto) -> Result<u32> {
 }
 
 pub fn s3_status() -> Result<S3StatusDto> {
-    Ok(match s3::load_config()? {
+    Ok(match s3::load_config(&*secrets()?)? {
         Some(c) => S3StatusDto {
             connected: true,
             endpoint: c.endpoint,
@@ -119,7 +119,7 @@ pub fn s3_status() -> Result<S3StatusDto> {
 
 /// Забыть настройки и ключи. Данные в бакете не трогаются.
 pub fn s3_disconnect() -> Result<()> {
-    s3::delete_config()?;
+    s3::delete_config(&*secrets()?)?;
     *LIBRARY.write().unwrap() = None;
     Ok(())
 }

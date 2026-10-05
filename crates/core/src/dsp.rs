@@ -462,6 +462,9 @@ pub struct EqStore {
     pub current: Option<EqSettings>,
     #[serde(default)]
     pub presets: Vec<NamedPreset>,
+    /// Unix-время последнего изменения (синхронизация между устройствами).
+    #[serde(default)]
+    pub updated_at: u64,
 }
 
 /// Читает настройки; отсутствующий файл — это пустые настройки.
@@ -661,6 +664,7 @@ Filter 6: ON LS Fc 80 Hz Gain 1.0 dB
                 name: "Мои наушники".into(),
                 settings: EqSettings::flat(EqMode::Parametric),
             }],
+            updated_at: 1_700_000_000,
         };
         save_store(&path, &store).unwrap();
         assert_eq!(load_store(&path).unwrap(), store);

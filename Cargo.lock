@@ -1555,6 +1555,7 @@ dependencies = [
  "flutter_rust_bridge",
  "moth-core",
  "reqwest",
+ "serde_json",
  "tokio",
 ]
 

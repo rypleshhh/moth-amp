@@ -1,5 +1,7 @@
 package io.github.rypleshhh.moth_amp
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// AudioServiceActivity — обычная FlutterActivity, связанная с сервисом
+// фонового воспроизведения audio_service.
+class MainActivity : AudioServiceActivity()

@@ -11,6 +11,7 @@ mod fsutil;
 pub mod model;
 pub mod provider;
 pub mod s3;
+pub mod secrets;
 pub mod yandex;
 
 pub use error::{Error, Result};

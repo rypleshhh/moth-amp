@@ -7,7 +7,12 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `account_dto`, `playlist_dto`, `provider`, `reset_provider`, `run`, `stream_dto`, `track_dto`, `track_dtos`
+// These functions are ignored because they are not marked as `pub`: `account_dto`, `playlist_dto`, `provider`, `reset_provider`, `run`, `secrets`, `stream_dto`, `track_dto`, `track_dtos`
+
+/// Вызывается первым при запуске. `data_dir` — приватная папка приложения:
+/// на Android секреты лежат в ней, на десктопе — в системном хранилище.
+Future<void> appInit({required String dataDir}) =>
+    RustLib.instance.api.crateApiYandexAppInit(dataDir: dataDir);
 
 Future<bool> isLoggedIn() => RustLib.instance.api.crateApiYandexIsLoggedIn();
 

@@ -43,7 +43,7 @@ impl fmt::Debug for TokenSet {
     }
 }
 
-pub(crate) fn now_unix() -> u64 {
+pub fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())

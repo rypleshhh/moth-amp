@@ -233,9 +233,12 @@ class VolumeSlider extends StatelessWidget {
 }
 
 class EqualizerButton extends StatelessWidget {
-  const EqualizerButton({super.key, required this.eq});
+  const EqualizerButton({super.key, required this.eq, this.onPressed});
 
   final EqController eq;
+
+  /// По умолчанию открывает полный экран эквалайзера.
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -252,9 +255,13 @@ class EqualizerButton extends StatelessWidget {
           tooltip: 'Эквалайзер',
           isSelected: active,
           icon: const Icon(Icons.equalizer),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => EqualizerScreen(eq: eq)),
-          ),
+          onPressed:
+              onPressed ??
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => EqualizerScreen(eq: eq),
+                ),
+              ),
         );
       },
     );

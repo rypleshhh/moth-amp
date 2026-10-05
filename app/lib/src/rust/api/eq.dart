@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `mode_from`, `mode_to`, `preset_to`, `settings_from`, `settings_to`
+// These functions are ignored because they are not marked as `pub`: `mode_from`, `mode_to`, `preset_to`, `settings_from`, `settings_to`, `state_to`
 
 EqSettingsDto eqFlat({required EqModeDto mode}) =>
     RustLib.instance.api.crateApiEqEqFlat(mode: mode);
@@ -38,6 +38,13 @@ EqSettingsDto eqParseAutoeq({required String text}) =>
 Future<EqStateDto> eqLoad({required String path}) =>
     RustLib.instance.api.crateApiEqEqLoad(path: path);
 
+/// Настройки с учётом S3: берётся более свежая копия (локальная или из
+/// бакета), и она же записывается на другую сторону. Без S3 — только локально.
+Future<EqStateDto> eqSync({required String path}) =>
+    RustLib.instance.api.crateApiEqEqSync(path: path);
+
+/// Сохранить локально и (если подключено) в S3. Сбой S3 не мешает
+/// локальному сохранению.
 Future<void> eqSave({required String path, required EqStateDto state}) =>
     RustLib.instance.api.crateApiEqEqSave(path: path, state: state);
 

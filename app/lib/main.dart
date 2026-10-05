@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'audio/downloads.dart';
 import 'audio/eq_controller.dart';
+import 'player/android_session.dart';
 import 'player/media_controls.dart';
 import 'player/player_controller.dart';
 import 'src/rust/api/cache.dart';
@@ -18,8 +19,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await RustLib.init();
+  final dataDir = await getApplicationSupportDirectory();
+  await appInit(dataDir: dataDir.path);
   try {
-    final dir = await getApplicationSupportDirectory();
+    final dir = dataDir;
     await cacheInit(
       dir: '${dir.path}${Platform.pathSeparator}cache',
       defaultLimitMb: 2048,
@@ -72,6 +75,9 @@ class _RootScreenState extends State<RootScreen> {
   late final Future<MediaControls?> _mediaControls = MediaControls.attach(
     _player,
   );
+  late final Future<AndroidSession?> _androidSession = AndroidSession.attach(
+    _player,
+  );
   late Future<bool> _loggedIn = isLoggedIn();
 
   void _refresh() => setState(() => _loggedIn = isLoggedIn());
@@ -93,6 +99,7 @@ class _RootScreenState extends State<RootScreen> {
     super.initState();
     // Подключаем медиаклавиши сразу, не дожидаясь первого build.
     _mediaControls.ignore();
+    _androidSession.ignore();
     _eq.load();
     _player.addListener(_onPlayerChanged);
   }
@@ -107,6 +114,7 @@ class _RootScreenState extends State<RootScreen> {
   void dispose() {
     _player.removeListener(_onPlayerChanged);
     _mediaControls.then((c) => c?.dispose());
+    _androidSession.then((s) => s?.dispose());
     _eq.dispose();
     _player.dispose();
     super.dispose();

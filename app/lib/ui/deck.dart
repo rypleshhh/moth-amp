@@ -7,6 +7,7 @@ import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/eq.dart';
 import 'player_bar.dart';
+import 'quick_eq.dart';
 
 /// Палитра «ночь и свет лампы».
 abstract final class DeckColors {
@@ -59,14 +60,26 @@ class Bevel extends StatelessWidget {
 }
 
 /// Левая колонка широкого окна: дисплей, транспорт, обложка.
-class ClassicDeck extends StatelessWidget {
+class ClassicDeck extends StatefulWidget {
   const ClassicDeck({super.key, required this.player, required this.eq});
 
   final PlayerController player;
   final EqController eq;
 
   @override
+  State<ClassicDeck> createState() => _ClassicDeckState();
+}
+
+class _ClassicDeckState extends State<ClassicDeck> {
+  /// Быстрый эквалайзер открыт поверх обложки.
+  bool _eqOpen = false;
+
+  void _toggleEq() => setState(() => _eqOpen = !_eqOpen);
+
+  @override
   Widget build(BuildContext context) {
+    final player = widget.player;
+    final eq = widget.eq;
     return ColoredBox(
       color: DeckColors.panel,
       child: Padding(
@@ -79,9 +92,17 @@ class ClassicDeck extends StatelessWidget {
               _Lcd(player: player, eq: eq),
               const SizedBox(height: 8),
               ProgressBar(player: player),
-              _Transport(player: player, eq: eq),
+              _Transport(player: player, eq: eq, onEq: _toggleEq),
               const SizedBox(height: 12),
-              Expanded(child: _BigCover(url: player.current?.coverUrl)),
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _BigCover(url: player.current?.coverUrl),
+                    if (_eqOpen) QuickEq(eq: eq, onClose: _toggleEq),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -378,10 +399,15 @@ class _CurvePainter extends CustomPainter {
 }
 
 class _Transport extends StatelessWidget {
-  const _Transport({required this.player, required this.eq});
+  const _Transport({
+    required this.player,
+    required this.eq,
+    required this.onEq,
+  });
 
   final PlayerController player;
   final EqController eq;
+  final VoidCallback onEq;
 
   @override
   Widget build(BuildContext context) {
@@ -401,7 +427,7 @@ class _Transport extends StatelessWidget {
         const SizedBox(width: 6),
         _DeckButton(icon: Icons.skip_next, onTap: has ? player.next : null),
         const Spacer(),
-        EqualizerButton(eq: eq),
+        EqualizerButton(eq: eq, onPressed: onEq),
         SizedBox(width: 110, child: VolumeSlider(player: player)),
       ],
     );

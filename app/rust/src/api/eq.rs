@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use anyhow::Result;
+use moth_core::auth::now_unix;
 use moth_core::dsp::{self, Band, EqMode, EqSettings, EqStore, FilterKind, NamedPreset};
 
 pub enum EqModeDto {
@@ -153,19 +154,56 @@ pub fn eq_parse_autoeq(text: String) -> Result<EqSettingsDto> {
     Ok(settings_to(dsp::parse_autoeq(&text)?))
 }
 
-pub fn eq_load(path: String) -> Result<EqStateDto> {
-    let store = dsp::load_store(Path::new(&path))?;
-    Ok(EqStateDto {
+fn state_to(store: EqStore) -> EqStateDto {
+    EqStateDto {
         current: settings_to(
             store
                 .current
                 .unwrap_or_else(|| EqSettings::flat(EqMode::Graphic10)),
         ),
         user_presets: store.presets.into_iter().map(preset_to).collect(),
-    })
+    }
 }
 
-pub fn eq_save(path: String, state: EqStateDto) -> Result<()> {
+pub fn eq_load(path: String) -> Result<EqStateDto> {
+    Ok(state_to(dsp::load_store(Path::new(&path))?))
+}
+
+/// Настройки с учётом S3: берётся более свежая копия (локальная или из
+/// бакета), и она же записывается на другую сторону. Без S3 — только локально.
+pub async fn eq_sync(path: String) -> Result<EqStateDto> {
+    super::yandex::run(async move {
+        let local = dsp::load_store(Path::new(&path))?;
+        let Some(lib) = super::s3::library()? else {
+            return Ok(state_to(local));
+        };
+        let remote: Option<EqStore> = match lib.get_setting(EQ_SETTING).await? {
+            Some(bytes) => serde_json::from_slice(&bytes).ok(),
+            None => None,
+        };
+        let store = match remote {
+            Some(remote) if remote.updated_at > local.updated_at => {
+                dsp::save_store(Path::new(&path), &remote)?;
+                remote
+            }
+            _ => {
+                if local.updated_at > 0 {
+                    lib.put_setting(EQ_SETTING, serde_json::to_vec_pretty(&local)?)
+                        .await?;
+                }
+                local
+            }
+        };
+        Ok(state_to(store))
+    })
+    .await
+}
+
+const EQ_SETTING: &str = "equalizer";
+
+/// Сохранить локально и (если подключено) в S3. Сбой S3 не мешает
+/// локальному сохранению.
+pub async fn eq_save(path: String, state: EqStateDto) -> Result<()> {
     let store = EqStore {
         current: Some(settings_from(state.current)),
         presets: state
@@ -176,9 +214,18 @@ pub fn eq_save(path: String, state: EqStateDto) -> Result<()> {
                 settings: settings_from(p.settings),
             })
             .collect(),
+        updated_at: now_unix(),
     };
     dsp::save_store(Path::new(&path), &store)?;
-    Ok(())
+    super::yandex::run(async move {
+        if let Ok(Some(lib)) = super::s3::library() {
+            if let Ok(json) = serde_json::to_vec_pretty(&store) {
+                let _ = lib.put_setting(EQ_SETTING, json).await;
+            }
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// Кривая АЧХ (дБ) в `points` точках от 20 Гц до 20 кГц — для дисплея плеера.

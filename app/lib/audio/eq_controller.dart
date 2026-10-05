@@ -60,7 +60,8 @@ class EqController extends ChangeNotifier {
     final dir = await getApplicationSupportDirectory();
     _path = '${dir.path}${Platform.pathSeparator}equalizer.json';
     try {
-      final state = await eqLoad(path: _path!);
+      // С подключённым S3 — более свежая копия из облака или с этого устройства.
+      final state = await eqSync(path: _path!);
       current = state.current;
       userPresets = List.of(state.userPresets);
     } catch (e) {

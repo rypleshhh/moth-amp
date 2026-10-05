@@ -7,7 +7,8 @@ use std::future::Future;
 use std::sync::{Arc, LazyLock, Mutex, RwLock};
 
 use anyhow::{anyhow, Result};
-use moth_core::auth::{KeyringTokenStore, TokenStore};
+use moth_core::auth::TokenStore;
+use moth_core::secrets::{SecretStore, SecretTokenStore};
 use moth_core::model::{Account, Playlist, Quality, StreamInfo, Track};
 use moth_core::provider::Provider;
 use moth_core::yandex::{ApiClient, DeviceCode, YandexConfig, YandexProvider};
@@ -35,10 +36,36 @@ pub(crate) fn provider() -> Result<Arc<YandexProvider>> {
     if let Some(p) = slot.as_ref() {
         return Ok(p.clone());
     }
-    let store: Arc<dyn TokenStore> = Arc::new(KeyringTokenStore::new("moth-amp", "yandex"));
+    let store: Arc<dyn TokenStore> = Arc::new(SecretTokenStore::new(secrets()?, "yandex"));
     let p = Arc::new(YandexProvider::new(ApiClient::new(YandexConfig::default(), store)?));
     *slot = Some(p.clone());
     Ok(p)
+}
+
+static SECRETS: std::sync::OnceLock<Arc<dyn SecretStore>> = std::sync::OnceLock::new();
+
+/// Хранилище секретов (выбирается в [`app_init`]).
+pub(crate) fn secrets() -> Result<Arc<dyn SecretStore>> {
+    SECRETS
+        .get()
+        .cloned()
+        .ok_or_else(|| anyhow!("не вызван app_init"))
+}
+
+/// Вызывается первым при запуске. `data_dir` — приватная папка приложения:
+/// на Android секреты лежат в ней, на десктопе — в системном хранилище.
+pub fn app_init(data_dir: String) -> Result<()> {
+    #[cfg(target_os = "android")]
+    let store: Arc<dyn SecretStore> = Arc::new(moth_core::secrets::FileSecretStore::new(
+        std::path::Path::new(&data_dir).join("secrets"),
+    ));
+    #[cfg(not(target_os = "android"))]
+    let store: Arc<dyn SecretStore> = {
+        let _ = &data_dir;
+        Arc::new(moth_core::secrets::KeyringSecretStore::new("moth-amp"))
+    };
+    let _ = SECRETS.set(store);
+    Ok(())
 }
 
 fn reset_provider() {

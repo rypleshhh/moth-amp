@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::auth::now_unix;
 use crate::cache::tags;
 use crate::model::{StreamInfo, TrackMeta};
+use crate::secrets::SecretStore;
 use crate::{Error, Result};
 
 /// Сколько живут подписанные ссылки.
@@ -292,6 +293,28 @@ impl S3Library {
         Ok(entry)
     }
 
+    fn setting_key(&self, name: &str) -> Result<String> {
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            return Err(Error::Unexpected(format!("недопустимое имя настройки: {name}")));
+        }
+        Ok(self.key(&format!("settings/{name}.json")))
+    }
+
+    /// Прочитать настройку (`settings/<name>.json`), `None` — её ещё нет.
+    pub async fn get_setting(&self, name: &str) -> Result<Option<Vec<u8>>> {
+        self.get_bytes(&self.setting_key(name)?).await
+    }
+
+    /// Записать настройку (`settings/<name>.json`).
+    pub async fn put_setting(&self, name: &str, json: Vec<u8>) -> Result<()> {
+        self.put_bytes(&self.setting_key(name)?, json, "application/json")
+            .await
+    }
+
     /// Удалить трек из библиотеки (файл, обложку, запись в индексе).
     pub async fn delete(&self, id: &str) -> Result<()> {
         let mut index = self.read_index().await?;
@@ -316,34 +339,22 @@ fn bitrate_kbps(entry: &LibraryEntry) -> Option<u32> {
 
 // ---- хранение настроек ----
 
-#[cfg(feature = "keyring-store")]
-fn config_entry() -> Result<keyring::Entry> {
-    keyring::Entry::new("moth-amp", "s3").map_err(|e| Error::Storage(e.to_string()))
-}
+const CONFIG_SECRET: &str = "s3";
 
-/// Настройки S3 из системного хранилища (вместе с ключами).
-#[cfg(feature = "keyring-store")]
-pub fn load_config() -> Result<Option<S3Config>> {
-    match config_entry()?.get_password() {
-        Ok(json) => Ok(Some(serde_json::from_str(&json)?)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(Error::Storage(e.to_string())),
+/// Настройки S3 (вместе с ключами) из хранилища секретов.
+pub fn load_config(store: &dyn SecretStore) -> Result<Option<S3Config>> {
+    match store.get(CONFIG_SECRET)? {
+        Some(json) => Ok(Some(serde_json::from_str(&json)?)),
+        None => Ok(None),
     }
 }
 
-#[cfg(feature = "keyring-store")]
-pub fn save_config(config: &S3Config) -> Result<()> {
-    config_entry()?
-        .set_password(&serde_json::to_string(config)?)
-        .map_err(|e| Error::Storage(e.to_string()))
+pub fn save_config(store: &dyn SecretStore, config: &S3Config) -> Result<()> {
+    store.set(CONFIG_SECRET, &serde_json::to_string(config)?)
 }
 
-#[cfg(feature = "keyring-store")]
-pub fn delete_config() -> Result<()> {
-    match config_entry()?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(Error::Storage(e.to_string())),
-    }
+pub fn delete_config(store: &dyn SecretStore) -> Result<()> {
+    store.delete(CONFIG_SECRET)
 }
 
 #[cfg(test)]
@@ -460,6 +471,11 @@ mod tests {
 
         lib.delete(&entry.id).await.unwrap();
         assert_eq!(lib.tracks().await.unwrap().len(), before);
+
+        lib.put_setting("test_eq", b"{\"a\":1}".to_vec()).await.unwrap();
+        assert_eq!(lib.get_setting("test_eq").await.unwrap().unwrap(), b"{\"a\":1}");
+        assert!(lib.get_setting("missing").await.unwrap().is_none());
+        assert!(lib.get_setting("../x").await.is_err());
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
