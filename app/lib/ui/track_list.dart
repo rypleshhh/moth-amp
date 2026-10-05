@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
+import '../audio/downloads.dart';
 import 'errors.dart';
 import 'track_cover.dart';
 
@@ -78,9 +79,15 @@ class _TrackListState extends State<TrackList>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: ms == null
-                      ? null
-                      : Text(formatDuration(Duration(milliseconds: ms))),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (ms != null)
+                        Text(formatDuration(Duration(milliseconds: ms))),
+                      const SizedBox(width: 4),
+                      DownloadButton(track: t),
+                    ],
+                  ),
                   onTap: () => widget.player.playQueue(tracks, i),
                 );
               },

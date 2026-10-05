@@ -99,6 +99,21 @@ pub struct StreamInfo {
     pub is_preview: bool,
 }
 
+/// Метаданные, которые вшиваются в файл кэша и хранятся в индексе.
+/// Тот же набор полей читается из собственных mp3/flac пользователя.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TrackMeta {
+    /// Источник: `yandex`, `local`, …
+    pub source: String,
+    pub id: String,
+    pub title: String,
+    pub artists: Vec<String>,
+    pub album: Option<String>,
+    pub year: Option<u32>,
+    pub cover_url: Option<String>,
+    pub duration_ms: Option<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub uid: String,

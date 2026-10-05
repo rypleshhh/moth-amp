@@ -1,10 +1,14 @@
 //! Консольный клиент для проверки ядра без UI.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use moth_core::auth::KeyringTokenStore;
+use moth_core::cache::proxy::{Proxy, ResolvedTrack, Resolver};
+use moth_core::cache::{tags, Cache};
+use moth_core::model::TrackMeta;
 use moth_core::model::{Quality, Track};
 use moth_core::provider::Provider;
 use moth_core::yandex::wave::Wave;
@@ -45,6 +49,13 @@ enum Command {
         #[arg(long, default_value_t = 2)]
         batches: usize,
     },
+    /// Скачать трек в кэш с тегами (проверка загрузки без UI)
+    Download {
+        track_id: String,
+        /// Папка кэша (по умолчанию — временная)
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
     /// Прямая ссылка на поток трека
     Url {
         track_id: String,
@@ -74,7 +85,7 @@ async fn main() -> Result<()> {
 
     let store = Arc::new(KeyringTokenStore::new("moth-amp", "yandex"));
     let api = ApiClient::new(YandexConfig::default(), store)?;
-    let yandex = YandexProvider::new(api);
+    let yandex = Arc::new(YandexProvider::new(api));
 
     match cli.command {
         Command::Login => login(&yandex).await?,
@@ -110,6 +121,49 @@ async fn main() -> Result<()> {
             for _ in 1..batches {
                 print_tracks(wave.more(yandex.api()).await?.iter());
             }
+        }
+        Command::Download { track_id, dir } => {
+            let dir = dir.unwrap_or_else(|| std::env::temp_dir().join("moth-cli-cache"));
+            let cache = Arc::new(Cache::open(&dir, 2048 * 1024 * 1024)?);
+            cache.confirm_plus(yandex.account().await?.has_plus)?;
+
+            let t = yandex
+                .api()
+                .tracks(std::slice::from_ref(&track_id))
+                .await?
+                .into_iter()
+                .next()
+                .context("трек не найден")?;
+            let meta = TrackMeta {
+                source: "yandex".into(),
+                id: t.key.id.clone(),
+                title: t.full_title(),
+                artists: t.artists.iter().map(|a| a.name.clone()).collect(),
+                album: t.album.as_ref().map(|a| a.title.clone()),
+                year: t.album.as_ref().and_then(|a| a.year),
+                cover_url: t.cover_url.clone(),
+                duration_ms: t.duration_ms,
+            };
+
+            let provider = yandex.clone();
+            let resolver: Resolver = Arc::new(move |id: String| {
+                let provider = provider.clone();
+                let meta = meta.clone();
+                Box::pin(async move {
+                    Ok(ResolvedTrack {
+                        stream: provider.stream(&id, Quality::High).await?,
+                        meta: Some(meta),
+                    })
+                })
+            });
+            let proxy = Proxy::start(cache.clone(), resolver, reqwest::Client::new()).await?;
+            proxy.download(&track_id).await?;
+
+            let (path, entry) = cache.lookup(&track_id).context("трек не попал в кэш")?;
+            let (title, artist, cover) = tags::read_title_artist(&path)?;
+            println!("файл:   {} ({:.2} МБ, {})", path.display(), entry.size as f64 / 1048576.0, entry.codec);
+            println!("теги:   {} — {}", artist.unwrap_or_default(), title.unwrap_or_default());
+            println!("обложка: {}", if cover { "есть" } else { "нет" });
         }
         Command::Url { track_id, quality } => {
             let s = yandex.stream(&track_id, quality.into()).await?;

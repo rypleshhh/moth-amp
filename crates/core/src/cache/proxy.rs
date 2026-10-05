@@ -26,13 +26,19 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{watch, Mutex};
 
-use super::{is_safe_id, Cache};
-use crate::model::StreamInfo;
+use super::{is_safe_id, tags, Cache};
+use crate::model::{StreamInfo, TrackMeta};
 use crate::{Error, Result};
 
-pub type ResolveFuture = Pin<Box<dyn Future<Output = Result<StreamInfo>> + Send>>;
+/// Ссылка на поток и метаданные для тегов файла кэша.
+pub struct ResolvedTrack {
+    pub stream: StreamInfo,
+    pub meta: Option<TrackMeta>,
+}
 
-/// Получить ссылку на поток по id трека.
+pub type ResolveFuture = Pin<Box<dyn Future<Output = Result<ResolvedTrack>> + Send>>;
+
+/// Получить ссылку на поток (и метаданные) по id трека.
 pub type Resolver = Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>;
 
 const MAX_HEAD_BYTES: usize = 16 * 1024;
@@ -54,6 +60,8 @@ struct Download {
     progress: watch::Receiver<Progress>,
     clients: AtomicUsize,
     cancelled: AtomicBool,
+    /// Скачивается вручную: уход плеера с трека загрузку не отменяет.
+    pinned: AtomicBool,
 }
 
 struct Shared {
@@ -68,6 +76,7 @@ struct Shared {
 pub struct Proxy {
     port: u16,
     token: String,
+    shared: Arc<Shared>,
 }
 
 impl Proxy {
@@ -92,7 +101,9 @@ impl Proxy {
             grace,
             downloads: Mutex::new(HashMap::new()),
         });
+        let accept_shared = shared.clone();
         tokio::spawn(async move {
+            let shared = accept_shared;
             loop {
                 let sock = match listener.accept().await {
                     Ok((sock, _)) => sock,
@@ -107,12 +118,60 @@ impl Proxy {
                 });
             }
         });
-        Ok(Self { port, token })
+        Ok(Self {
+            port,
+            token,
+            shared,
+        })
     }
 
     /// Адрес, который отдаётся плееру.
     pub fn url(&self, track_id: &str) -> String {
         format!("http://127.0.0.1:{}/{}/{track_id}", self.port, self.token)
+    }
+
+    /// Скачать трек в кэш вручную (иконка загрузки). Если трек уже играет
+    /// через прокси, используется та же загрузка. Завершается, когда файл в кэше.
+    pub async fn download(&self, track_id: &str) -> Result<()> {
+        if !is_safe_id(track_id) {
+            return Err(Error::Unexpected("некорректный id трека".into()));
+        }
+        let cache = &self.shared.cache;
+        if cache.contains(track_id) {
+            return Ok(());
+        }
+        let dl = attach(&self.shared, track_id)
+            .await
+            .ok_or_else(|| Error::Unexpected("не удалось начать загрузку".into()))?;
+        dl.pinned.store(true, Ordering::SeqCst);
+        // Мы не читатель: отдаём «место» обратно.
+        dl.clients.fetch_sub(1, Ordering::SeqCst);
+
+        let mut rx = dl.progress.clone();
+        loop {
+            let p = *rx.borrow_and_update();
+            if p.finished || p.failed || rx.changed().await.is_err() {
+                break;
+            }
+        }
+        // Перенос в кэш происходит, когда файл отпустят читатели.
+        let deadline = Instant::now() + RELEASE_TIMEOUT;
+        while Instant::now() < deadline {
+            if cache.contains(track_id) {
+                return Ok(());
+            }
+            if !self.shared.downloads.lock().await.contains_key(track_id) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        if cache.contains(track_id) {
+            Ok(())
+        } else {
+            Err(Error::Unexpected(
+                "трек не сохранён (без подписки доступно только превью, или сбой сети)".into(),
+            ))
+        }
     }
 }
 
@@ -230,8 +289,8 @@ async fn attach(shared: &Arc<Shared>, id: &str) -> Option<Arc<Download>> {
         return finished_file(path).await;
     }
 
-    let info = (shared.resolver)(id.to_owned()).await.ok()?;
-    let resp = shared.http.get(&info.url).send().await.ok()?;
+    let resolved = (shared.resolver)(id.to_owned()).await.ok()?;
+    let resp = shared.http.get(&resolved.stream.url).send().await.ok()?;
     if resp.status() != reqwest::StatusCode::OK {
         return None;
     }
@@ -253,9 +312,10 @@ async fn attach(shared: &Arc<Shared>, id: &str) -> Option<Arc<Download>> {
         progress: rx,
         clients: AtomicUsize::new(1),
         cancelled: AtomicBool::new(false),
+        pinned: AtomicBool::new(false),
     });
     downloads.insert(id.to_owned(), dl.clone());
-    tokio::spawn(write_task(shared.clone(), id.to_owned(), dl.clone(), resp, file, tx, info));
+    tokio::spawn(write_task(shared.clone(), id.to_owned(), dl.clone(), resp, file, tx, resolved));
     Some(dl)
 }
 
@@ -274,6 +334,7 @@ async fn finished_file(path: PathBuf) -> Option<Arc<Download>> {
         progress: rx,
         clients: AtomicUsize::new(1),
         cancelled: AtomicBool::new(false),
+        pinned: AtomicBool::new(false),
     }))
 }
 
@@ -292,8 +353,9 @@ async fn write_task(
     mut resp: reqwest::Response,
     mut file: tokio::fs::File,
     tx: watch::Sender<Progress>,
-    info: StreamInfo,
+    resolved: ResolvedTrack,
 ) {
+    let info = &resolved.stream;
     let mut ok = true;
     loop {
         if dl.cancelled.load(Ordering::SeqCst) {
@@ -329,17 +391,34 @@ async fn write_task(
         }
     });
 
+    let keep = complete && !info.is_preview;
+    // Обложку качаем заранее, пока плеер ещё может читать файл.
+    let cover = match (&resolved.meta, keep) {
+        (Some(meta), true) => fetch_cover(&shared.http, meta).await,
+        _ => None,
+    };
+
     // Переносим в кэш (или удаляем), когда файл никто не читает.
     let deadline = Instant::now() + RELEASE_TIMEOUT;
     loop {
         {
             let mut downloads = shared.downloads.lock().await;
             if dl.clients.load(Ordering::SeqCst) == 0 || Instant::now() > deadline {
-                let keep = complete && !info.is_preview;
+                if let (true, Some(meta)) = (keep, &resolved.meta) {
+                    // Теги не критичны: без них файл всё равно играет.
+                    let _ = tags::write_tags(&dl.path, meta, cover.as_deref());
+                }
                 let committed = keep
                     && shared
                         .cache
-                        .commit(&id, &dl.path, &info.codec, info.bitrate_kbps)
+                        .commit(
+                            &id,
+                            &dl.path,
+                            &info.codec,
+                            info.bitrate_kbps,
+                            resolved.meta.clone(),
+                            dl.pinned.load(Ordering::SeqCst),
+                        )
                         .is_ok();
                 if !committed {
                     let _ = tokio::fs::remove_file(&dl.path).await;
@@ -350,6 +429,25 @@ async fn write_task(
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
+}
+
+/// Обложка покрупнее для тегов (в списках — 100×100, тут 600×600).
+async fn fetch_cover(http: &reqwest::Client, meta: &TrackMeta) -> Option<Vec<u8>> {
+    let url = meta.cover_url.as_deref()?;
+    let url = match url.rsplit_once('/') {
+        Some((base, size)) if size.contains('x') => format!("{base}/600x600"),
+        _ => url.to_owned(),
+    };
+    let resp = http
+        .get(url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.bytes().await.ok().map(|b| b.to_vec())
 }
 
 struct ClientGuard {
@@ -363,7 +461,7 @@ impl Drop for ClientGuard {
             return;
         }
         let p = *self.dl.progress.borrow();
-        if p.finished || p.failed {
+        if p.finished || p.failed || self.dl.pinned.load(Ordering::SeqCst) {
             return;
         }
         // Последний читатель ушёл посреди загрузки: если за `grace` никто
@@ -372,7 +470,7 @@ impl Drop for ClientGuard {
         let grace = self.grace;
         tokio::spawn(async move {
             tokio::time::sleep(grace).await;
-            if dl.clients.load(Ordering::SeqCst) == 0 {
+            if dl.clients.load(Ordering::SeqCst) == 0 && !dl.pinned.load(Ordering::SeqCst) {
                 dl.cancelled.store(true, Ordering::SeqCst);
             }
         });
@@ -511,11 +609,18 @@ mod tests {
         let resolver: Resolver = Arc::new(move |_id| {
             let url = url.clone();
             Box::pin(async move {
-                Ok(StreamInfo {
-                    url,
-                    codec: "mp3".into(),
-                    bitrate_kbps: Some(320),
-                    is_preview: preview,
+                Ok(ResolvedTrack {
+                    stream: StreamInfo {
+                        url,
+                        codec: "mp3".into(),
+                        bitrate_kbps: Some(320),
+                        is_preview: preview,
+                    },
+                    meta: Some(TrackMeta {
+                        source: "yandex".into(),
+                        title: "Тест".into(),
+                        ..Default::default()
+                    }),
                 })
             })
         });
@@ -606,6 +711,35 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(1500)).await;
         assert!(!cache.contains("46"));
         assert_eq!(part_files(&dir), 0);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn manual_download_is_pinned_and_survives_skip() {
+        let (cache, proxy, dir) = setup("manual", false, "/slow").await;
+        // Плеер начал и ушёл с трека, но пользователь нажал «скачать».
+        let mut resp = reqwest::get(proxy.url("47")).await.unwrap();
+        let _ = resp.chunk().await.unwrap();
+        let download = proxy.download("47");
+        drop(resp);
+        download.await.unwrap();
+        let entry = cache
+            .cached_tracks()
+            .into_iter()
+            .find(|(id, _)| id == "47")
+            .unwrap()
+            .1;
+        assert!(entry.pinned);
+        assert_eq!(entry.meta.unwrap().title, "Тест");
+        assert_eq!(part_files(&dir), 0);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn manual_download_of_preview_fails() {
+        let (cache, proxy, dir) = setup("manual-preview", true, "/t.mp3").await;
+        assert!(proxy.download("48").await.is_err());
+        assert!(!cache.contains("48"));
         let _ = std::fs::remove_dir_all(dir);
     }
 

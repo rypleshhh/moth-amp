@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../src/rust/api/cache.dart';
 import 'errors.dart';
@@ -64,7 +65,21 @@ class _CacheDialogState extends State<_CacheDialog> {
                         ? 0
                         : (s.usedMb / s.limitMb).clamp(0, 1),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Сохранять все прослушанные треки'),
+                    subtitle: const Text(
+                      'Выключено — в кэш попадают только треки, скачанные '
+                      'кнопкой загрузки.',
+                    ),
+                    value: s.autoCache,
+                    onChanged: (v) async {
+                      await cacheSetAuto(enabled: v);
+                      await _reload();
+                    },
+                  ),
+                  const SizedBox(height: 8),
                   Text('Лимит', style: theme.textTheme.labelLarge),
                   const SizedBox(height: 8),
                   Wrap(
@@ -82,8 +97,18 @@ class _CacheDialogState extends State<_CacheDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  Text('Папка', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 4),
+                  SelectableText(s.folder, style: theme.textTheme.bodySmall),
+                  TextButton.icon(
+                    icon: const Icon(Icons.folder_open_outlined),
+                    label: const Text('Открыть папку'),
+                    onPressed: () => launchUrl(Uri.directory(s.folder)),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    'Прослушанные треки сохраняются как mp3/flac и в следующий раз '
+                    'Треки хранятся как обычные mp3/flac с тегами (название, '
+                    'исполнители, альбом, год, обложка) и в следующий раз '
                     'играют без сети. При переполнении удаляются давно не '
                     'игравшие. Кэш работает, пока подписка подтверждена (до 30 '
                     'дней без сети), и удаляется при выходе из аккаунта.',

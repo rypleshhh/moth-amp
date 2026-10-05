@@ -7,7 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `reqwest_client`, `state`, `wipe`
+import 'yandex.dart';
+
+// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `meta_from`, `remember_meta`, `state`, `wipe`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CacheState`
 
 /// Открыть кэш в `dir` и запустить прокси. `default_limit_mb` применяется,
@@ -18,15 +20,27 @@ Future<void> cacheInit({required String dir, required int defaultLimitMb}) =>
       defaultLimitMb: defaultLimitMb,
     );
 
-/// Откуда играть трек: файл из кэша или поток через прокси (с записью в кэш).
-Future<PlaySourceDto> playSource({required String trackId}) =>
-    RustLib.instance.api.crateApiCachePlaySource(trackId: trackId);
+/// Откуда играть трек: файл из кэша, поток через прокси (с записью в кэш)
+/// или напрямую, если автосохранение выключено.
+Future<PlaySourceDto> playSource({required TrackDto track}) =>
+    RustLib.instance.api.crateApiCachePlaySource(track: track);
+
+/// Скачать трек в кэш вручную. Завершается, когда файл сохранён.
+Future<void> cacheDownload({required TrackDto track}) =>
+    RustLib.instance.api.crateApiCacheCacheDownload(track: track);
+
+/// id всех треков в кэше (для отметок в списках).
+Future<List<String>> cachedIds() =>
+    RustLib.instance.api.crateApiCacheCachedIds();
 
 Future<CacheStatsDto> cacheStats() =>
     RustLib.instance.api.crateApiCacheCacheStats();
 
 Future<void> cacheSetLimit({required int limitMb}) =>
     RustLib.instance.api.crateApiCacheCacheSetLimit(limitMb: limitMb);
+
+Future<void> cacheSetAuto({required bool enabled}) =>
+    RustLib.instance.api.crateApiCacheCacheSetAuto(enabled: enabled);
 
 Future<void> cacheClear() => RustLib.instance.api.crateApiCacheCacheClear();
 
@@ -35,14 +49,27 @@ class CacheStatsDto {
   final int limitMb;
   final int tracks;
 
+  /// Сохранять все прослушанные треки.
+  final bool autoCache;
+
+  /// Папка с файлами треков.
+  final String folder;
+
   const CacheStatsDto({
     required this.usedMb,
     required this.limitMb,
     required this.tracks,
+    required this.autoCache,
+    required this.folder,
   });
 
   @override
-  int get hashCode => usedMb.hashCode ^ limitMb.hashCode ^ tracks.hashCode;
+  int get hashCode =>
+      usedMb.hashCode ^
+      limitMb.hashCode ^
+      tracks.hashCode ^
+      autoCache.hashCode ^
+      folder.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -51,11 +78,13 @@ class CacheStatsDto {
           runtimeType == other.runtimeType &&
           usedMb == other.usedMb &&
           limitMb == other.limitMb &&
-          tracks == other.tracks;
+          tracks == other.tracks &&
+          autoCache == other.autoCache &&
+          folder == other.folder;
 }
 
 class PlaySourceDto {
-  /// Путь к файлу кэша или адрес локального прокси.
+  /// Путь к файлу кэша, адрес локального прокси или прямая ссылка.
   final String url;
   final String codec;
   final int? bitrateKbps;

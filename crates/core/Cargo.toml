@@ -13,6 +13,7 @@ keyring-store = ["dep:keyring"]
 [dependencies]
 async-trait.workspace = true
 keyring = { workspace = true, optional = true }
+lofty.workspace = true
 md5.workspace = true
 reqwest.workspace = true
 serde.workspace = true

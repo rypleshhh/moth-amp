@@ -13,6 +13,7 @@ moth-core = { path = "crates/core" }
 anyhow = "1"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }
+lofty = "0.25"
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 md5 = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

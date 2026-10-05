@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'audio/downloads.dart';
 import 'audio/eq_controller.dart';
 import 'player/media_controls.dart';
 import 'player/player_controller.dart';
@@ -27,11 +28,15 @@ Future<void> main() async {
     // Без кэша приложение работает, треки просто играют напрямую.
     debugPrint('Кэш не открылся: $e');
   }
-  runApp(const MusicApp());
+  final downloads = DownloadController();
+  downloads.refresh();
+  runApp(MusicApp(downloads: downloads));
 }
 
 class MusicApp extends StatelessWidget {
-  const MusicApp({super.key});
+  const MusicApp({super.key, required this.downloads});
+
+  final DownloadController downloads;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +49,9 @@ class MusicApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
+      // Над навигатором, чтобы загрузки были видны и в открытых поверх экранах.
+      builder: (context, child) =>
+          DownloadsScope(controller: downloads, child: child!),
       home: const RootScreen(),
     );
   }
@@ -67,16 +75,36 @@ class _RootScreenState extends State<RootScreen> {
 
   void _refresh() => setState(() => _loggedIn = isLoggedIn());
 
+  DownloadController? _downloads;
+  String? _lastTrackId;
+
+  /// Сменился трек — предыдущий мог сохраниться в кэш сам.
+  void _onPlayerChanged() {
+    final id = _player.current?.id;
+    if (id != _lastTrackId) {
+      _lastTrackId = id;
+      _downloads?.refresh();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     // Подключаем медиаклавиши сразу, не дожидаясь первого build.
     _mediaControls.ignore();
     _eq.load();
+    _player.addListener(_onPlayerChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _downloads = DownloadsScope.of(context);
   }
 
   @override
   void dispose() {
+    _player.removeListener(_onPlayerChanged);
     _mediaControls.then((c) => c?.dispose());
     _eq.dispose();
     _player.dispose();

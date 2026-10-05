@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../player/player_controller.dart';
+import '../src/rust/api/yandex.dart';
+import '../audio/downloads.dart';
 import 'track_cover.dart';
 import 'track_list.dart';
 
@@ -15,11 +17,23 @@ class WaveTab extends StatefulWidget {
 }
 
 class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
-  // По умолчанию тихий режим: приватность важнее рекомендаций.
+  // Пока статус подписки не известен — тихий режим.
   bool _learning = false;
+  bool _userChose = false;
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    // С Плюсом по умолчанию обычная волна, как в приложении Яндекса.
+    account()
+        .then((a) {
+          if (mounted && !_userChose) setState(() => _learning = a.hasPlus);
+        })
+        .catchError((Object _) {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,18 +64,20 @@ class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
                       ButtonSegment(
                         value: true,
                         icon: Icon(Icons.auto_awesome_outlined),
-                        label: Text('Обучаемая'),
+                        label: Text('Обычная'),
                       ),
                     ],
                     selected: {_learning},
-                    onSelectionChanged: (v) =>
-                        setState(() => _learning = v.first),
+                    onSelectionChanged: (v) => setState(() {
+                      _learning = v.first;
+                      _userChose = true;
+                    }),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _learning
-                        ? 'Отправляются отчёты «начал / дослушал / пропустил» — волна '
-                              'подстраивается под вас, как в официальном приложении.'
+                        ? 'Как в приложении Яндекса: отправляются отчёты «начал / '
+                              'дослушал / пропустил», и волна подстраивается под вас.'
                         : 'Волна в режиме incognito, отчёты о прослушивании не '
                               'отправляются. Ваши рекомендации не меняются.',
                     style: theme.textTheme.bodySmall,
@@ -89,7 +105,7 @@ class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'Сейчас играет ${player.waveLearning ? 'обучаемая' : 'тихая'} '
+                        'Сейчас играет ${player.waveLearning ? 'обычная' : 'тихая'} '
                         'волна. Новый режим применится после перезапуска.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.tertiary,
@@ -124,9 +140,15 @@ class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: ms == null
-                          ? null
-                          : Text(formatDuration(Duration(milliseconds: ms))),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (ms != null)
+                            Text(formatDuration(Duration(milliseconds: ms))),
+                          const SizedBox(width: 4),
+                          DownloadButton(track: t),
+                        ],
+                      ),
                       onTap: () => player.playIndex(i),
                     );
                   },

@@ -262,7 +262,7 @@ class PlayerController extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final s = await playSource(trackId: _queue[i].id);
+      final s = await playSource(track: _queue[i]);
       if (request != _request) return;
       stream = s;
       _lastPosition = Duration.zero;

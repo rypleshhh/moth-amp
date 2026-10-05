@@ -5,12 +5,12 @@ use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 
 use anyhow::{anyhow, Result};
-use moth_core::cache::proxy::{Proxy, Resolver};
+use moth_core::cache::proxy::{Proxy, ResolvedTrack, Resolver};
 use moth_core::cache::Cache;
-use moth_core::model::{Quality, StreamInfo};
+use moth_core::model::{Quality, StreamInfo, TrackMeta};
 use moth_core::provider::Provider;
 
-use super::yandex::{provider, run};
+use super::yandex::{provider, run, TrackDto};
 
 struct CacheState {
     cache: Arc<Cache>,
@@ -23,10 +23,14 @@ static STATE: OnceLock<CacheState> = OnceLock::new();
 static PENDING: LazyLock<Mutex<HashMap<String, StreamInfo>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Метаданные треков для тегов файлов кэша.
+static META: LazyLock<Mutex<HashMap<String, TrackMeta>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
 const MB: u64 = 1024 * 1024;
 
 pub struct PlaySourceDto {
-    /// Путь к файлу кэша или адрес локального прокси.
+    /// Путь к файлу кэша, адрес локального прокси или прямая ссылка.
     pub url: String,
     pub codec: String,
     pub bitrate_kbps: Option<u32>,
@@ -38,6 +42,27 @@ pub struct CacheStatsDto {
     pub used_mb: f64,
     pub limit_mb: u32,
     pub tracks: u32,
+    /// Сохранять все прослушанные треки.
+    pub auto_cache: bool,
+    /// Папка с файлами треков.
+    pub folder: String,
+}
+
+fn meta_from(t: &TrackDto) -> TrackMeta {
+    TrackMeta {
+        source: "yandex".into(),
+        id: t.id.clone(),
+        title: t.title.clone(),
+        artists: t.artist_names.clone(),
+        album: t.album.clone(),
+        year: t.year,
+        cover_url: t.cover_url.clone(),
+        duration_ms: t.duration_ms.map(u64::from),
+    }
+}
+
+fn remember_meta(t: &TrackDto) {
+    META.lock().unwrap().insert(t.id.clone(), meta_from(t));
 }
 
 /// Открыть кэш в `dir` и запустить прокси. `default_limit_mb` применяется,
@@ -50,14 +75,22 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
         let cache = Arc::new(Cache::open(Path::new(&dir), u64::from(default_limit_mb) * MB)?);
         let resolver: Resolver = Arc::new(|id: String| {
             Box::pin(async move {
-                if let Some(info) = PENDING.lock().unwrap().remove(&id) {
-                    return Ok(info);
-                }
-                let p = provider().map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
-                p.stream(&id, Quality::High).await
+                let meta = META.lock().unwrap().get(&id).cloned();
+                let pending = PENDING.lock().unwrap().remove(&id);
+                let stream = match pending {
+                    Some(info) => info,
+                    None => {
+                        let p = provider()
+                            .map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
+                        p.stream(&id, Quality::High).await?
+                    }
+                };
+                Ok(ResolvedTrack { stream, meta })
             })
         });
-        let http = reqwest_client()?;
+        let http = reqwest::Client::builder()
+            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
+            .build()?;
         let proxy = Proxy::start(cache.clone(), resolver, http).await?;
         let _ = STATE.set(CacheState { cache, proxy });
         Ok(())
@@ -65,17 +98,13 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
     .await
 }
 
-fn reqwest_client() -> Result<reqwest::Client> {
-    Ok(reqwest::Client::builder()
-        .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
-        .build()?)
-}
-
-/// Откуда играть трек: файл из кэша или поток через прокси (с записью в кэш).
-pub async fn play_source(track_id: String) -> Result<PlaySourceDto> {
+/// Откуда играть трек: файл из кэша, поток через прокси (с записью в кэш)
+/// или напрямую, если автосохранение выключено.
+pub async fn play_source(track: TrackDto) -> Result<PlaySourceDto> {
     run(async move {
-        if let Some(state) = STATE.get() {
-            if let Some((path, entry)) = state.cache.lookup(&track_id) {
+        let state = STATE.get();
+        if let Some(state) = state {
+            if let Some((path, entry)) = state.cache.lookup(&track.id) {
                 return Ok(PlaySourceDto {
                     url: path.to_string_lossy().into_owned(),
                     codec: entry.codec,
@@ -85,18 +114,18 @@ pub async fn play_source(track_id: String) -> Result<PlaySourceDto> {
                 });
             }
         }
-        let info = provider()?.stream(&track_id, Quality::High).await?;
-        let url = match STATE.get() {
-            Some(state) => {
-                let url = state.proxy.url(&track_id);
+        let info = provider()?.stream(&track.id, Quality::High).await?;
+        let url = match state {
+            Some(state) if state.cache.auto_cache() => {
+                remember_meta(&track);
                 PENDING
                     .lock()
                     .unwrap()
-                    .insert(track_id.clone(), info.clone());
-                url
+                    .insert(track.id.clone(), info.clone());
+                state.proxy.url(&track.id)
             }
-            // Кэш не открылся — играем напрямую, без записи.
-            None => info.url.clone(),
+            // Автосохранение выключено (или кэш не открылся) — напрямую, без записи.
+            _ => info.url.clone(),
         };
         Ok(PlaySourceDto {
             url,
@@ -109,21 +138,45 @@ pub async fn play_source(track_id: String) -> Result<PlaySourceDto> {
     .await
 }
 
+/// Скачать трек в кэш вручную. Завершается, когда файл сохранён.
+pub async fn cache_download(track: TrackDto) -> Result<()> {
+    run(async move {
+        let state = state()?;
+        remember_meta(&track);
+        state.proxy.download(&track.id).await?;
+        Ok(())
+    })
+    .await
+}
+
 fn state() -> Result<&'static CacheState> {
     STATE.get().ok_or_else(|| anyhow!("кэш не инициализирован"))
 }
 
+/// id всех треков в кэше (для отметок в списках).
+pub fn cached_ids() -> Result<Vec<String>> {
+    Ok(state()?.cache.cached_ids())
+}
+
 pub fn cache_stats() -> Result<CacheStatsDto> {
-    let s = state()?.cache.stats();
+    let cache = &state()?.cache;
+    let s = cache.stats();
     Ok(CacheStatsDto {
         used_mb: s.used_bytes as f64 / MB as f64,
         limit_mb: u32::try_from(s.limit_bytes / MB).unwrap_or(u32::MAX),
         tracks: u32::try_from(s.tracks).unwrap_or(u32::MAX),
+        auto_cache: cache.auto_cache(),
+        folder: cache.folder().to_string_lossy().into_owned(),
     })
 }
 
 pub fn cache_set_limit(limit_mb: u32) -> Result<()> {
     state()?.cache.set_limit(u64::from(limit_mb) * MB)?;
+    Ok(())
+}
+
+pub fn cache_set_auto(enabled: bool) -> Result<()> {
+    state()?.cache.set_auto_cache(enabled)?;
     Ok(())
 }
 

@@ -75,8 +75,12 @@ pub struct TrackDto {
     pub id: String,
     /// Название вместе с версией.
     pub title: String,
+    /// Исполнители одной строкой для показа.
     pub artists: String,
+    /// Исполнители по отдельности (для тегов файла).
+    pub artist_names: Vec<String>,
     pub album: Option<String>,
+    pub year: Option<u32>,
     pub duration_ms: Option<u32>,
     pub available: bool,
     pub cover_url: Option<String>,
@@ -111,7 +115,9 @@ fn track_dto(t: Track) -> TrackDto {
     TrackDto {
         title: t.full_title(),
         artists: t.artist_line(),
+        artist_names: t.artists.iter().map(|a| a.name.clone()).collect(),
         id: t.key.id,
+        year: t.album.as_ref().and_then(|a| a.year),
         album: t.album.map(|a| a.title),
         duration_ms: t.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
         available: t.available,

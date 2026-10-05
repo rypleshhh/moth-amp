@@ -147,8 +147,14 @@ class TrackDto {
 
   /// Название вместе с версией.
   final String title;
+
+  /// Исполнители одной строкой для показа.
   final String artists;
+
+  /// Исполнители по отдельности (для тегов файла).
+  final List<String> artistNames;
   final String? album;
+  final int? year;
   final int? durationMs;
   final bool available;
   final String? coverUrl;
@@ -157,7 +163,9 @@ class TrackDto {
     required this.id,
     required this.title,
     required this.artists,
+    required this.artistNames,
     this.album,
+    this.year,
     this.durationMs,
     required this.available,
     this.coverUrl,
@@ -168,7 +176,9 @@ class TrackDto {
       id.hashCode ^
       title.hashCode ^
       artists.hashCode ^
+      artistNames.hashCode ^
       album.hashCode ^
+      year.hashCode ^
       durationMs.hashCode ^
       available.hashCode ^
       coverUrl.hashCode;
@@ -181,7 +191,9 @@ class TrackDto {
           id == other.id &&
           title == other.title &&
           artists == other.artists &&
+          artistNames == other.artistNames &&
           album == other.album &&
+          year == other.year &&
           durationMs == other.durationMs &&
           available == other.available &&
           coverUrl == other.coverUrl;

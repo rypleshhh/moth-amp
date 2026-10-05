@@ -8,6 +8,7 @@
 //! [`OFFLINE_GRACE_SECS`] назад; при выходе из аккаунта кэш удаляется.
 
 pub mod proxy;
+pub mod tags;
 
 use std::collections::HashMap;
 use std::fs;
@@ -18,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::now_unix;
 use crate::fsutil::write_atomic;
+use crate::model::TrackMeta;
 use crate::Result;
 
 /// Сколько кэш играет без подтверждения подписки (офлайн-льгота).
@@ -31,6 +33,12 @@ pub struct Entry {
     pub bitrate_kbps: Option<u32>,
     /// Unix-время последнего воспроизведения (для LRU).
     pub last_access: u64,
+    /// Метаданные (они же вшиты в теги файла).
+    #[serde(default)]
+    pub meta: Option<TrackMeta>,
+    /// Скачан вручную (иконкой загрузки), а не просто прослушан.
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -39,12 +47,30 @@ struct PlusMark {
     confirmed_at: u64,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Index {
     #[serde(default)]
     entries: HashMap<String, Entry>,
     limit_bytes: u64,
     plus: Option<PlusMark>,
+    /// Сохранять в кэш все прослушанные треки (иначе только скачанные вручную).
+    #[serde(default = "default_true")]
+    auto_cache: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+            limit_bytes: 0,
+            plus: None,
+            auto_cache: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,12 +196,15 @@ impl Cache {
     }
 
     /// Принять докачанный файл в кэш и освободить место при переполнении.
+    /// `pinned` — скачан вручную.
     pub fn commit(
         &self,
         track_id: &str,
         part: &Path,
         codec: &str,
         bitrate_kbps: Option<u32>,
+        meta: Option<TrackMeta>,
+        pinned: bool,
     ) -> Result<()> {
         let file = format!("{track_id}.{}", extension(codec));
         let target = self.tracks_dir().join(&file);
@@ -189,6 +218,8 @@ impl Cache {
                 codec: codec.to_owned(),
                 bitrate_kbps,
                 last_access: now_unix(),
+                meta,
+                pinned,
             },
         );
         self.evict(Some(track_id));
@@ -219,6 +250,39 @@ impl Cache {
                 used = used.saturating_sub(size);
             }
         }
+    }
+
+    /// id всех треков в кэше (для отметок «скачан» в списках).
+    pub fn cached_ids(&self) -> Vec<String> {
+        self.index.lock().unwrap().entries.keys().cloned().collect()
+    }
+
+    /// Метаданные треков в кэше — для офлайн-списка «Скачанное».
+    pub fn cached_tracks(&self) -> Vec<(String, Entry)> {
+        let mut list: Vec<(String, Entry)> = self
+            .index
+            .lock()
+            .unwrap()
+            .entries
+            .iter()
+            .map(|(id, e)| (id.clone(), e.clone()))
+            .collect();
+        list.sort_by_key(|(_, e)| std::cmp::Reverse(e.last_access));
+        list
+    }
+
+    /// Папка с файлами треков.
+    pub fn folder(&self) -> PathBuf {
+        self.tracks_dir()
+    }
+
+    pub fn auto_cache(&self) -> bool {
+        self.index.lock().unwrap().auto_cache
+    }
+
+    pub fn set_auto_cache(&self, on: bool) -> Result<()> {
+        self.index.lock().unwrap().auto_cache = on;
+        self.save()
     }
 
     pub fn stats(&self) -> CacheStats {
@@ -287,7 +351,7 @@ mod tests {
     fn add(cache: &Cache, id: &str, bytes: usize) {
         let part = cache.part_path(id);
         fs::write(&part, vec![0u8; bytes]).unwrap();
-        cache.commit(id, &part, "mp3", Some(320)).unwrap();
+        cache.commit(id, &part, "mp3", Some(320), None, false).unwrap();
     }
 
     #[test]
@@ -356,6 +420,37 @@ mod tests {
         assert_eq!(cache.stats().tracks, 0);
         assert!(!cache.playback_allowed());
         assert!(!dir.0.join("tracks").join("1.mp3").exists());
+    }
+
+    #[test]
+    fn auto_cache_setting_persists() {
+        let dir = TempDir::new("auto");
+        {
+            let cache = Cache::open(&dir.0, 1_000).unwrap();
+            assert!(cache.auto_cache(), "по умолчанию включено");
+            cache.set_auto_cache(false).unwrap();
+        }
+        assert!(!Cache::open(&dir.0, 1_000).unwrap().auto_cache());
+    }
+
+    #[test]
+    fn meta_is_stored() {
+        let dir = TempDir::new("meta");
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        let part = cache.part_path("7");
+        fs::write(&part, b"x").unwrap();
+        let meta = TrackMeta {
+            source: "yandex".into(),
+            id: "7".into(),
+            title: "T".into(),
+            ..Default::default()
+        };
+        cache.commit("7", &part, "flac", None, Some(meta.clone()), true).unwrap();
+        let list = cache.cached_tracks();
+        assert_eq!(list[0].1.meta.as_ref(), Some(&meta));
+        assert!(list[0].1.pinned);
+        assert!(list[0].1.file.ends_with(".flac"));
+        assert_eq!(cache.cached_ids(), vec!["7".to_owned()]);
     }
 
     #[test]
