@@ -11,6 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 anyhow.workspace = true
 flutter_rust_bridge = "=2.13.0"
 moth-core.workspace = true
+reqwest.workspace = true
 tokio.workspace = true
 
 [lints.rust]

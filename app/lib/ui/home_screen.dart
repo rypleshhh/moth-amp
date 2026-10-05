@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
+import 'cache_dialog.dart';
 import 'errors.dart';
 import 'player_bar.dart';
 import 'track_list.dart';
@@ -40,6 +41,13 @@ class HomeScreen extends StatelessWidget {
             },
           ),
           actions: [
+            Builder(
+              builder: (context) => IconButton(
+                tooltip: 'Кэш',
+                icon: const Icon(Icons.storage_outlined),
+                onPressed: () => showCacheDialog(context),
+              ),
+            ),
             IconButton(
               tooltip: 'Выйти',
               icon: const Icon(Icons.logout),

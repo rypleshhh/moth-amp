@@ -178,7 +178,10 @@ pub async fn finish_login() -> Result<AccountDto> {
         let tokens = p.api().oauth().wait_for_token(&code).await?;
         p.api().set_tokens(tokens).await?;
         reset_provider();
-        Ok(account_dto(provider()?.account().await?))
+        let p = provider()?;
+        let acc = p.account().await?;
+        super::cache::confirm_plus(acc.has_plus);
+        Ok(account_dto(acc))
     })
     .await
 }
@@ -187,6 +190,7 @@ pub async fn logout() -> Result<()> {
     run(async {
         provider()?.api().logout().await?;
         super::wave::reset().await;
+        super::cache::wipe();
         reset_provider();
         Ok(())
     })
@@ -194,7 +198,14 @@ pub async fn logout() -> Result<()> {
 }
 
 pub async fn account() -> Result<AccountDto> {
-    run(async { Ok(account_dto(provider()?.account().await?)) }).await
+    run(async {
+        let p = provider()?;
+        let acc = p.account().await?;
+        // Каждый успешный запрос аккаунта продлевает офлайн-льготу кэша.
+        super::cache::confirm_plus(acc.has_plus);
+        Ok(account_dto(acc))
+    })
+    .await
 }
 
 pub async fn liked_tracks() -> Result<Vec<TrackDto>> {

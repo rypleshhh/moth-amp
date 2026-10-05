@@ -55,7 +55,8 @@ class PlayerBar extends StatelessWidget {
                                           if (stream != null)
                                             '${stream.codec}'
                                                 '${stream.bitrateKbps != null ? ' ${stream.bitrateKbps}' : ''}'
-                                                '${stream.isPreview ? ' · превью' : ''}',
+                                                '${stream.isPreview ? ' · превью' : ''}'
+                                                '${stream.cached ? ' · из кэша' : ''}',
                                         ].where((s) => s.isNotEmpty).join(' · '),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

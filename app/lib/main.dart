@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'audio/eq_controller.dart';
 import 'player/media_controls.dart';
 import 'player/player_controller.dart';
+import 'src/rust/api/cache.dart';
 import 'src/rust/api/yandex.dart';
 import 'src/rust/frb_generated.dart';
 import 'ui/home_screen.dart';
@@ -13,6 +17,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await RustLib.init();
+  try {
+    final dir = await getApplicationSupportDirectory();
+    await cacheInit(
+      dir: '${dir.path}${Platform.pathSeparator}cache',
+      defaultLimitMb: 2048,
+    );
+  } catch (e) {
+    // Без кэша приложение работает, треки просто играют напрямую.
+    debugPrint('Кэш не открылся: $e');
+  }
   runApp(const MusicApp());
 }
 

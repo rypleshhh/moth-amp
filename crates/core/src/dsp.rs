@@ -390,13 +390,7 @@ pub fn load_store(path: &Path) -> Result<EqStore> {
 
 /// Пишет через временный файл, чтобы сбой посреди записи не испортил настройки.
 pub fn save_store(path: &Path, store: &EqStore) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, serde_json::to_vec_pretty(store)?)?;
-    fs::rename(&tmp, path)?;
-    Ok(())
+    crate::fsutil::write_atomic(path, &serde_json::to_vec_pretty(store)?)
 }
 
 #[cfg(test)]

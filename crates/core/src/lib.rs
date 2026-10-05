@@ -4,8 +4,10 @@
 //! трейт [`provider::Provider`], не зная деталей конкретного сервиса.
 
 pub mod auth;
+pub mod cache;
 pub mod dsp;
 pub mod error;
+mod fsutil;
 pub mod model;
 pub mod provider;
 pub mod yandex;

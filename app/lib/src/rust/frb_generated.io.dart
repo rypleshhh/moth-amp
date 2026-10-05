@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/cache.dart';
 import 'api/eq.dart';
 import 'api/wave.dart';
 import 'api/yandex.dart';
@@ -43,6 +44,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  CacheStatsDto dco_decode_cache_stats_dto(dynamic raw);
 
   @protected
   DeviceCodeDto dco_decode_device_code_dto(dynamic raw);
@@ -96,6 +100,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  PlaySourceDto dco_decode_play_source_dto(dynamic raw);
+
+  @protected
   PlaylistDto dco_decode_playlist_dto(dynamic raw);
 
   @protected
@@ -135,6 +142,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  CacheStatsDto sse_decode_cache_stats_dto(SseDeserializer deserializer);
 
   @protected
   DeviceCodeDto sse_decode_device_code_dto(SseDeserializer deserializer);
@@ -188,6 +198,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  PlaySourceDto sse_decode_play_source_dto(SseDeserializer deserializer);
+
+  @protected
   PlaylistDto sse_decode_playlist_dto(SseDeserializer deserializer);
 
   @protected
@@ -234,6 +247,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_cache_stats_dto(CacheStatsDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_device_code_dto(DeviceCodeDto self, SseSerializer serializer);
@@ -297,6 +313,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_play_source_dto(PlaySourceDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_playlist_dto(PlaylistDto self, SseSerializer serializer);

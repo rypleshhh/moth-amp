@@ -1288,6 +1288,7 @@ dependencies = [
  "anyhow",
  "flutter_rust_bridge",
  "moth-core",
+ "reqwest",
  "tokio",
 ]
 

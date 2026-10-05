@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../src/rust/api/cache.dart';
 import '../src/rust/api/wave.dart';
 import '../src/rust/api/yandex.dart';
 import '../ui/errors.dart';
@@ -72,7 +73,9 @@ class PlayerController extends ChangeNotifier {
   bool playing = false;
   bool loading = false;
   String? error;
-  StreamDto? stream;
+
+  /// Откуда играет текущий трек (кэш или сеть), кодек и битрейт.
+  PlaySourceDto? stream;
 
   /// Играет «Моя волна»: очередь бесконечная, догружается партиями.
   bool waveActive = false;
@@ -259,7 +262,7 @@ class PlayerController extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final s = await streamUrl(trackId: _queue[i].id, lowQuality: false);
+      final s = await playSource(trackId: _queue[i].id);
       if (request != _request) return;
       stream = s;
       _lastPosition = Duration.zero;
