@@ -1,0 +1,25 @@
+name: moth_amp
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_rust_bridge: 2.13.0
+  media_kit: ^1.2.6
+  media_kit_libs_audio: ^1.0.7
+  rust_lib_moth_amp:
+    path: rust_builder
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
