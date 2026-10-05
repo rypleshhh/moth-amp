@@ -27,7 +27,7 @@ static PROVIDER: RwLock<Option<Arc<YandexProvider>>> = RwLock::new(None);
 /// Код подтверждения между `start_login` и `finish_login`.
 static PENDING_LOGIN: Mutex<Option<DeviceCode>> = Mutex::new(None);
 
-fn provider() -> Result<Arc<YandexProvider>> {
+pub(crate) fn provider() -> Result<Arc<YandexProvider>> {
     if let Some(p) = PROVIDER.read().unwrap().as_ref() {
         return Ok(p.clone());
     }
@@ -45,7 +45,7 @@ fn reset_provider() {
     *PROVIDER.write().unwrap() = None;
 }
 
-async fn run<T, F>(fut: F) -> Result<T>
+pub(crate) async fn run<T, F>(fut: F) -> Result<T>
 where
     T: Send + 'static,
     F: Future<Output = Result<T>> + Send + 'static,
@@ -119,7 +119,7 @@ fn track_dto(t: Track) -> TrackDto {
     }
 }
 
-fn track_dtos(tracks: Vec<Track>) -> Vec<TrackDto> {
+pub(crate) fn track_dtos(tracks: Vec<Track>) -> Vec<TrackDto> {
     tracks.into_iter().map(track_dto).collect()
 }
 
@@ -186,6 +186,7 @@ pub async fn finish_login() -> Result<AccountDto> {
 pub async fn logout() -> Result<()> {
     run(async {
         provider()?.api().logout().await?;
+        super::wave::reset().await;
         reset_provider();
         Ok(())
     })

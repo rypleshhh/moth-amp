@@ -46,7 +46,9 @@ class RootScreen extends StatefulWidget {
 class _RootScreenState extends State<RootScreen> {
   final _player = PlayerController();
   late final _eq = EqController(_player);
-  late final Future<MediaControls?> _mediaControls = MediaControls.attach(_player);
+  late final Future<MediaControls?> _mediaControls = MediaControls.attach(
+    _player,
+  );
   late Future<bool> _loggedIn = isLoggedIn();
 
   void _refresh() => setState(() => _loggedIn = isLoggedIn());
@@ -73,7 +75,9 @@ class _RootScreenState extends State<RootScreen> {
       future: _loggedIn,
       builder: (context, snap) {
         if (!snap.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snap.data!) {
           return HomeScreen(player: _player, eq: _eq, onLogout: _refresh);

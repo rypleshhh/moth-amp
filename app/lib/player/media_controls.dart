@@ -98,7 +98,8 @@ class MediaControls {
   void _pushTimeline({bool force = false}) {
     if (!_smtc.enabled) return;
     final now = DateTime.now();
-    if (!force && now.difference(_lastTimelinePush) < const Duration(seconds: 1)) {
+    if (!force &&
+        now.difference(_lastTimelinePush) < const Duration(seconds: 1)) {
       return;
     }
     _lastTimelinePush = now;

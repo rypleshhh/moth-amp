@@ -4,6 +4,7 @@ pub mod api;
 pub mod download;
 pub mod dto;
 pub mod oauth;
+pub mod wave;
 
 use async_trait::async_trait;
 use tokio::sync::OnceCell;

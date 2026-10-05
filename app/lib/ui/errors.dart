@@ -1,4 +1,5 @@
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show AnyhowException;
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
+    show AnyhowException;
 
 /// Короткий текст ошибки для интерфейса: только первая строка, без цепочки
 /// причин и трассировки стека, которые добавляет мост к Rust.

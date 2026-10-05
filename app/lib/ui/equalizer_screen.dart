@@ -44,9 +44,18 @@ class EqualizerScreen extends StatelessWidget {
                 children: [
                   SegmentedButton<EqModeDto>(
                     segments: const [
-                      ButtonSegment(value: EqModeDto.graphic10, label: Text('10 полос')),
-                      ButtonSegment(value: EqModeDto.graphic18, label: Text('18 полос')),
-                      ButtonSegment(value: EqModeDto.parametric, label: Text('Параметрический')),
+                      ButtonSegment(
+                        value: EqModeDto.graphic10,
+                        label: Text('10 полос'),
+                      ),
+                      ButtonSegment(
+                        value: EqModeDto.graphic18,
+                        label: Text('18 полос'),
+                      ),
+                      ButtonSegment(
+                        value: EqModeDto.parametric,
+                        label: Text('Параметрический'),
+                      ),
                     ],
                     selected: {s.mode},
                     onSelectionChanged: (v) => eq.setMode(v.first),
@@ -56,7 +65,10 @@ class EqualizerScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   _PreampRow(eq: eq),
                   const Divider(height: 32),
-                  if (eq.isGraphic) _GraphicBands(eq: eq) else _ParametricBands(eq: eq),
+                  if (eq.isGraphic)
+                    _GraphicBands(eq: eq)
+                  else
+                    _ParametricBands(eq: eq),
                 ],
               ),
             ),
@@ -85,7 +97,10 @@ class _PresetBar extends StatelessWidget {
           onSubmitted: (v) => Navigator.pop(context, v),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Сохранить'),
@@ -131,7 +146,10 @@ class _PresetBar extends StatelessWidget {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
+            ),
             FilledButton(
               onPressed: () {
                 try {
@@ -165,7 +183,10 @@ class _PresetBar extends StatelessWidget {
           ),
           menuChildren: [
             for (final p in eq.builtinPresets)
-              MenuItemButton(onPressed: () => eq.applyPreset(p), child: Text(p.name)),
+              MenuItemButton(
+                onPressed: () => eq.applyPreset(p),
+                child: Text(p.name),
+              ),
             if (eq.userPresets.isNotEmpty) const Divider(),
             for (final p in eq.userPresets)
               MenuItemButton(
@@ -202,7 +223,9 @@ class _PresetBar extends StatelessWidget {
             eq.current.preampDb > eqAutoPreamp(settings: eq.current) + 0.05)
           Text(
             'Возможна перегрузка: нажмите «Авто» у предусилителя',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.tertiary),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.tertiary,
+            ),
           ),
       ],
     );
@@ -210,10 +233,10 @@ class _PresetBar extends StatelessWidget {
 }
 
 String _modeName(EqModeDto m) => switch (m) {
-      EqModeDto.graphic10 => '10 полос',
-      EqModeDto.graphic18 => '18 полос',
-      EqModeDto.parametric => 'параметр.',
-    };
+  EqModeDto.graphic10 => '10 полос',
+  EqModeDto.graphic18 => '18 полос',
+  EqModeDto.parametric => 'параметр.',
+};
 
 class _PreampRow extends StatelessWidget {
   const _PreampRow({required this.eq});
@@ -236,7 +259,10 @@ class _PreampRow extends StatelessWidget {
             onChangeEnd: (_) => eq.commit(),
           ),
         ),
-        SizedBox(width: 64, child: Text('${_formatDb(db)} дБ', textAlign: TextAlign.end)),
+        SizedBox(
+          width: 64,
+          child: Text('${_formatDb(db)} дБ', textAlign: TextAlign.end),
+        ),
         TextButton(onPressed: eq.autoPreamp, child: const Text('Авто')),
       ],
     );
@@ -258,7 +284,10 @@ class _GraphicBands extends StatelessWidget {
       height: 300,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final columnWidth = math.max(44.0, constraints.maxWidth / bands.length);
+          final columnWidth = math.max(
+            44.0,
+            constraints.maxWidth / bands.length,
+          );
           return ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: bands.length,
@@ -278,7 +307,11 @@ class _GraphicBands extends StatelessWidget {
                           min: -_range,
                           max: _range,
                           divisions: 48,
-                          onChanged: (v) => eq.setBand(i, b.copyWith(gainDb: v), apply: false),
+                          onChanged: (v) => eq.setBand(
+                            i,
+                            b.copyWith(gainDb: v),
+                            apply: false,
+                          ),
                           onChangeEnd: (_) => eq.commit(),
                         ),
                       ),
@@ -315,19 +348,18 @@ class _ParametricBands extends StatelessWidget {
             ),
           ),
         for (var i = 0; i < bands.length; i++)
-          _BandEditor(
-            key: ValueKey(i),
-            index: i,
-            band: bands[i],
-            eq: eq,
-          ),
+          _BandEditor(key: ValueKey(i), index: i, band: bands[i], eq: eq),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(
             icon: const Icon(Icons.add),
-            label: Text('Добавить полосу (${bands.length}/${EqController.maxParametricBands})'),
-            onPressed: bands.length < EqController.maxParametricBands ? eq.addBand : null,
+            label: Text(
+              'Добавить полосу (${bands.length}/${EqController.maxParametricBands})',
+            ),
+            onPressed: bands.length < EqController.maxParametricBands
+                ? eq.addBand
+                : null,
           ),
         ),
       ],
@@ -357,18 +389,22 @@ class _BandEditor extends StatelessWidget {
 
   static double _pow10(double v) => math.pow(10, v).toDouble();
 
-  void _set(EqBandDto b, {bool apply = false}) => eq.setBand(index, b, apply: apply);
+  void _set(EqBandDto b, {bool apply = false}) =>
+      eq.setBand(index, b, apply: apply);
 
   @override
   Widget build(BuildContext context) {
     final labelStyle = Theme.of(context).textTheme.bodySmall;
     Widget row(String label, Widget slider, String value) => Row(
-          children: [
-            SizedBox(width: 72, child: Text(label, style: labelStyle)),
-            Expanded(child: slider),
-            SizedBox(width: 72, child: Text(value, textAlign: TextAlign.end, style: labelStyle)),
-          ],
-        );
+      children: [
+        SizedBox(width: 72, child: Text(label, style: labelStyle)),
+        Expanded(child: slider),
+        SizedBox(
+          width: 72,
+          child: Text(value, textAlign: TextAlign.end, style: labelStyle),
+        ),
+      ],
+    );
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -384,9 +420,18 @@ class _BandEditor extends StatelessWidget {
                   value: band.kind,
                   underline: const SizedBox.shrink(),
                   items: const [
-                    DropdownMenuItem(value: FilterKindDto.peaking, child: Text('Пиковый')),
-                    DropdownMenuItem(value: FilterKindDto.lowShelf, child: Text('НЧ-полка')),
-                    DropdownMenuItem(value: FilterKindDto.highShelf, child: Text('ВЧ-полка')),
+                    DropdownMenuItem(
+                      value: FilterKindDto.peaking,
+                      child: Text('Пиковый'),
+                    ),
+                    DropdownMenuItem(
+                      value: FilterKindDto.lowShelf,
+                      child: Text('НЧ-полка'),
+                    ),
+                    DropdownMenuItem(
+                      value: FilterKindDto.highShelf,
+                      child: Text('ВЧ-полка'),
+                    ),
                   ],
                   onChanged: (k) {
                     if (k != null) _set(band.copyWith(kind: k), apply: true);
@@ -406,7 +451,8 @@ class _BandEditor extends StatelessWidget {
                 value: _log10(band.freqHz.clamp(20, 20000)),
                 min: _minF,
                 max: _maxF,
-                onChanged: (v) => _set(band.copyWith(freqHz: _pow10(v).roundToDouble())),
+                onChanged: (v) =>
+                    _set(band.copyWith(freqHz: _pow10(v).roundToDouble())),
                 onChangeEnd: (_) => eq.commit(),
               ),
               '${_formatFreq(band.freqHz)} Гц',
@@ -429,7 +475,9 @@ class _BandEditor extends StatelessWidget {
                 value: _log10(band.q.clamp(0.1, 10)),
                 min: _minQ,
                 max: _maxQ,
-                onChanged: (v) => _set(band.copyWith(q: double.parse(_pow10(v).toStringAsFixed(2)))),
+                onChanged: (v) => _set(
+                  band.copyWith(q: double.parse(_pow10(v).toStringAsFixed(2))),
+                ),
                 onChangeEnd: (_) => eq.commit(),
               ),
               band.q.toStringAsFixed(2),

@@ -149,6 +149,15 @@ impl ApiClient {
             .await
     }
 
+    pub(crate) async fn post_json<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> Result<T> {
+        self.send(self.http.post(format!("{}{path}", self.base)).json(body))
+            .await
+    }
+
     // ---- методы API ----
 
     pub async fn account_status(&self) -> Result<Account> {

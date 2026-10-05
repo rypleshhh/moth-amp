@@ -6,6 +6,7 @@ import '../src/rust/api/yandex.dart';
 import 'errors.dart';
 import 'player_bar.dart';
 import 'track_list.dart';
+import 'wave_tab.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -27,7 +28,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: FutureBuilder<AccountDto>(
@@ -47,6 +48,7 @@ class HomeScreen extends StatelessWidget {
           ],
           bottom: const TabBar(
             tabs: [
+              Tab(text: 'Моя волна'),
               Tab(text: 'Мне нравится'),
               Tab(text: 'Плейлисты'),
               Tab(text: 'Поиск'),
@@ -55,6 +57,7 @@ class HomeScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
+            WaveTab(player: player),
             TrackList(load: likedTracks, player: player),
             _PlaylistsTab(player: player, eq: eq),
             _SearchTab(player: player),

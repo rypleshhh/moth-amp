@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use moth_core::auth::KeyringTokenStore;
 use moth_core::model::{Quality, Track};
 use moth_core::provider::Provider;
+use moth_core::yandex::wave::Wave;
 use moth_core::yandex::{ApiClient, YandexConfig, YandexProvider};
 
 #[derive(Parser)]
@@ -35,6 +36,15 @@ enum Command {
     Playlist { kind: String },
     /// Поиск треков
     Search { query: String },
+    /// «Моя волна»: первые партии треков (по умолчанию тихий режим, без отчётов)
+    Wave {
+        /// Обучаемый режим: отправлять отчёты, волна подстраивается
+        #[arg(long)]
+        learning: bool,
+        /// Сколько партий получить
+        #[arg(long, default_value_t = 2)]
+        batches: usize,
+    },
     /// Прямая ссылка на поток трека
     Url {
         track_id: String,
@@ -93,6 +103,14 @@ async fn main() -> Result<()> {
         }
         Command::Playlist { kind } => print_tracks(yandex.playlist_tracks(&kind).await?.iter()),
         Command::Search { query } => print_tracks(yandex.search_tracks(&query).await?.iter()),
+        Command::Wave { learning, batches } => {
+            let (mut wave, first) = Wave::start(yandex.api(), learning).await?;
+            println!("Режим: {}", if learning { "обучаемый" } else { "тихий (incognito)" });
+            print_tracks(first.iter());
+            for _ in 1..batches {
+                print_tracks(wave.more(yandex.api()).await?.iter());
+            }
+        }
         Command::Url { track_id, quality } => {
             let s = yandex.stream(&track_id, quality.into()).await?;
             let kbps = s.bitrate_kbps.map(|b| format!(" {b} кбит/с")).unwrap_or_default();

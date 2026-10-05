@@ -167,7 +167,8 @@ class _ProgressBarState extends State<_ProgressBar> {
     return StreamBuilder<Duration>(
       stream: widget.player.duration,
       builder: (context, durSnap) {
-        final total = durSnap.data ?? Duration.zero;
+        final total =
+            widget.player.knownDuration ?? durSnap.data ?? Duration.zero;
         return StreamBuilder<Duration>(
           stream: widget.player.position,
           builder: (context, posSnap) {

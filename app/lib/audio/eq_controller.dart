@@ -13,13 +13,12 @@ extension EqSettingsCopy on EqSettingsDto {
     EqModeDto? mode,
     double? preampDb,
     List<EqBandDto>? bands,
-  }) =>
-      EqSettingsDto(
-        enabled: enabled ?? this.enabled,
-        mode: mode ?? this.mode,
-        preampDb: preampDb ?? this.preampDb,
-        bands: bands ?? this.bands,
-      );
+  }) => EqSettingsDto(
+    enabled: enabled ?? this.enabled,
+    mode: mode ?? this.mode,
+    preampDb: preampDb ?? this.preampDb,
+    bands: bands ?? this.bands,
+  );
 }
 
 extension EqBandCopy on EqBandDto {
@@ -28,13 +27,12 @@ extension EqBandCopy on EqBandDto {
     double? freqHz,
     double? gainDb,
     double? q,
-  }) =>
-      EqBandDto(
-        kind: kind ?? this.kind,
-        freqHz: freqHz ?? this.freqHz,
-        gainDb: gainDb ?? this.gainDb,
-        q: q ?? this.q,
-      );
+  }) => EqBandDto(
+    kind: kind ?? this.kind,
+    freqHz: freqHz ?? this.freqHz,
+    gainDb: gainDb ?? this.gainDb,
+    q: q ?? this.q,
+  );
 }
 
 /// Состояние эквалайзера: текущие настройки, пользовательские пресеты,
@@ -114,12 +112,14 @@ class EqController extends ChangeNotifier {
   void addBand() {
     if (current.bands.length >= maxParametricBands) return;
     final bands = List.of(current.bands)
-      ..add(const EqBandDto(
-        kind: FilterKindDto.peaking,
-        freqHz: 1000,
-        gainDb: 0,
-        q: 1,
-      ));
+      ..add(
+        const EqBandDto(
+          kind: FilterKindDto.peaking,
+          freqHz: 1000,
+          gainDb: 0,
+          q: 1,
+        ),
+      );
     _update(current.copyWith(bands: bands));
   }
 
@@ -130,10 +130,8 @@ class EqController extends ChangeNotifier {
 
   void reset() => _update(eqFlat(mode: current.mode));
 
-  void applyPreset(EqPresetDto preset) => _update(
-        preset.settings.copyWith(enabled: true),
-        preset: preset.name,
-      );
+  void applyPreset(EqPresetDto preset) =>
+      _update(preset.settings.copyWith(enabled: true), preset: preset.name);
 
   /// Бросает исключение, если текст не похож на пресет AutoEq.
   void importAutoEq(String text) =>
