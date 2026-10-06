@@ -276,14 +276,12 @@ pub(crate) fn confirm_plus(has_plus: bool) {
     }
 }
 
-/// Выход из аккаунта: кэш Яндекса удаляется.
-pub(crate) async fn wipe() {
+/// Выход из аккаунта: файлы остаются (и локально, и в S3), сбрасывается
+/// только отметка о подписке — до следующего входа с Плюсом треки Яндекса
+/// из кэша не играют.
+pub(crate) fn forget_plus() {
     if let Some(s) = STATE.get() {
-        let _ = s.cache.wipe_account();
-    }
-    if let Ok(Some(lib)) = super::s3::library() {
-        let _guard = MIRROR_LOCK.lock().await;
-        let _ = lib.cache_remove_yandex().await;
+        let _ = s.cache.forget_plus();
     }
 }
 

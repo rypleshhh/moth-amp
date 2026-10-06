@@ -5,7 +5,8 @@
 //! индекс — `<dir>/index.json`.
 //!
 //! Кэш Яндекса играет, только если Плюс был подтверждён не раньше
-//! [`OFFLINE_GRACE_SECS`] назад; при выходе из аккаунта кэш удаляется.
+//! [`OFFLINE_GRACE_SECS`] назад; при выходе из аккаунта отметка о подписке
+//! сбрасывается, файлы остаются.
 
 pub mod proxy;
 pub mod tags;
@@ -609,26 +610,10 @@ impl Cache {
         self.save()
     }
 
-    /// Выход из аккаунта Яндекса: удалить треки Яндекса и отметку о подписке.
-    /// Собственные треки пользователя остаются.
-    pub fn wipe_account(&self) -> Result<()> {
-        let files: Vec<Entry> = {
-            let mut index = self.index.lock().unwrap();
-            index.plus = None;
-            let yandex: Vec<String> = index
-                .entries
-                .iter()
-                .filter(|(_, e)| needs_plus(e))
-                .map(|(id, _)| id.clone())
-                .collect();
-            yandex
-                .iter()
-                .filter_map(|id| index.entries.remove(id))
-                .collect::<Vec<Entry>>()
-        };
-        for entry in &files {
-            self.remove_files(entry);
-        }
+    /// Выход из аккаунта Яндекса: забыть отметку о подписке. Файлы остаются,
+    /// но треки Яндекса не играют, пока Плюс не подтвердится при следующем входе.
+    pub fn forget_plus(&self) -> Result<()> {
+        self.index.lock().unwrap().plus = None;
         self.save()
     }
 }
@@ -721,15 +706,20 @@ mod tests {
     }
 
     #[test]
-    fn wipe_on_logout() {
-        let dir = TempDir::new("wipe");
+    fn logout_keeps_files() {
+        let dir = TempDir::new("logout");
         let cache = Cache::open(&dir.0, 1_000).unwrap();
         cache.confirm_plus(true).unwrap();
         add(&cache, "1", 5);
-        cache.wipe_account().unwrap();
-        assert_eq!(cache.stats().tracks, 0);
+        cache.forget_plus().unwrap();
+        assert_eq!(cache.stats().tracks, 1);
         assert!(!cache.playback_allowed());
-        assert!(!dir.0.join("tracks").join("1.mp3").exists());
+        assert!(cache.lookup("1").is_none());
+        assert!(dir.0.join("tracks").join("1.mp3").exists());
+
+        // Следующий вход с Плюсом — трек снова играет.
+        cache.confirm_plus(true).unwrap();
+        assert!(cache.lookup("1").is_some());
     }
 
     #[test]
@@ -750,12 +740,11 @@ mod tests {
         assert!(cache.lookup("mine").is_some());
         assert!(cache.lookup("ya").is_none());
 
-        // Выход из аккаунта стирает только треки Яндекса.
+        // После выхода из аккаунта свой трек по-прежнему играет.
         cache.confirm_plus(true).unwrap();
-        cache.wipe_account().unwrap();
-        assert!(cache.contains("mine"));
-        assert!(!cache.contains("ya"));
-        assert!(dir.0.join("tracks").join("mine.flac").exists());
+        cache.forget_plus().unwrap();
+        assert!(cache.lookup("mine").is_some());
+        assert!(cache.lookup("ya").is_none());
     }
 
     #[test]

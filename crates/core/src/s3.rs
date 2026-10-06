@@ -77,7 +77,7 @@ pub struct LibraryEntry {
 
 /// Трек кэша в бакете (`cache/<источник>/<id>.<ext>`): общий кэш для
 /// всех устройств пользователя. Для треков Яндекса действуют те же правила,
-/// что и для локального кэша (подписка, удаление при выходе).
+/// что и для локального кэша (играют, пока подтверждён Плюс).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CachedObject {
     pub id: String,
@@ -442,7 +442,7 @@ impl S3Library {
         }
     }
 
-    /// Удалить из бакета кэш треков Яндекса (выход из аккаунта).
+    /// Удалить из бакета кэш треков Яндекса.
     /// Возвращает число удалённых треков.
     pub async fn cache_remove_yandex(&self) -> Result<usize> {
         let mut index = self.read_cache_index().await?;
@@ -630,7 +630,7 @@ mod tests {
         lib.delete(&entry.id).await.unwrap();
         assert_eq!(lib.tracks().await.unwrap().len(), before);
 
-        // Кэш в бакете: положить, найти, прочитать, стереть при выходе.
+        // Кэш в бакете: положить, найти, прочитать, убрать за собой.
         let ya = TrackMeta {
             source: "yandex".into(),
             id: "777".into(),

@@ -288,7 +288,7 @@ pub async fn logout() -> Result<()> {
     run(async {
         provider()?.api().logout().await?;
         super::wave::reset().await;
-        super::cache::wipe().await;
+        super::cache::forget_plus();
         reset_provider();
         Ok(())
     })
