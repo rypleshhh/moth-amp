@@ -168,7 +168,11 @@ class _Lcd extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _Marquee(
-            text: track == null
+            // Ошибка воспроизведения важнее названия: на широком окне
+            // нижней панели нет, и показать её больше негде.
+            text: player.error != null
+                ? '⚠ ${player.error}'
+                : track == null
                 ? 'moth-amp · ничего не играет'
                 : '${track.artists} — ${track.title}',
             style: const TextStyle(
