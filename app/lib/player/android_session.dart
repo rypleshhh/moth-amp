@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'player_controller.dart';
 
@@ -45,6 +47,11 @@ class _MothAudioHandler extends BaseAudioHandler with SeekHandler {
 
   final PlayerController _player;
   late final List<StreamSubscription<Object?>> _subs;
+
+  /// Блокировка от сна и Wi-Fi-блокировка (MainActivity.kt): без них телефон
+  /// с выключенным экраном засыпает между треками.
+  static const _power = MethodChannel('moth_amp/power');
+  bool _awake = false;
   Duration _position = Duration.zero;
   String? _shownId;
   DateTime _lastPush = DateTime.fromMillisecondsSinceEpoch(0);
@@ -66,6 +73,15 @@ class _MothAudioHandler extends BaseAudioHandler with SeekHandler {
       );
     }
     _pushState(force: true);
+    _holdAwake(_player.active);
+  }
+
+  void _holdAwake(bool on) {
+    if (on == _awake) return;
+    _awake = on;
+    _power
+        .invokeMethod<void>('hold', on)
+        .catchError((Object e) => debugPrint('power: $e'));
   }
 
   /// Состояние для уведомления; позиция — не чаще раза в секунду.
@@ -76,11 +92,14 @@ class _MothAudioHandler extends BaseAudioHandler with SeekHandler {
     }
     _lastPush = now;
     final hasTrack = _player.current != null;
+    // Между треками mpv сообщает «не играет»; для системы это всё ещё
+    // воспроизведение, иначе сервис уйдёт с переднего плана.
+    final playing = _player.active;
     playbackState.add(
       PlaybackState(
         controls: [
           MediaControl.skipToPrevious,
-          _player.playing ? MediaControl.pause : MediaControl.play,
+          playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
         ],
         systemActions: const {MediaAction.seek},
@@ -90,7 +109,7 @@ class _MothAudioHandler extends BaseAudioHandler with SeekHandler {
             : _player.loading
             ? AudioProcessingState.loading
             : AudioProcessingState.ready,
-        playing: _player.playing,
+        playing: playing,
         updatePosition: _position,
       ),
     );
@@ -119,6 +138,7 @@ class _MothAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> dispose() async {
     _player.removeListener(_sync);
+    _holdAwake(false);
     for (final s in _subs) {
       await s.cancel();
     }

@@ -16,6 +16,12 @@ class PlayerController extends ChangeNotifier {
     _subs = [
       _player.stream.playing.listen((v) {
         playing = v;
+        if (v) {
+          _switching = false;
+        } else if (_player.state.completed) {
+          // Трек доигран, сейчас включится следующий: это не пауза.
+          _switching = true;
+        }
         notifyListeners();
       }),
       _player.stream.completed.listen((done) {
@@ -57,6 +63,7 @@ class PlayerController extends ChangeNotifier {
           _errorAt == at &&
           _lastPosition <= at + const Duration(seconds: 1)) {
         error = e;
+        _switching = false;
         notifyListeners();
       }
     });
@@ -73,6 +80,14 @@ class PlayerController extends ChangeNotifier {
   bool playing = false;
   bool loading = false;
   String? error;
+
+  /// Переход к следующему треку: прошлый доигран, новый ещё грузится.
+  bool _switching = false;
+
+  /// Музыка должна играть: идёт воспроизведение или переход между треками.
+  /// На Android, пока это так, сервис остаётся на переднем плане, а телефон
+  /// не засыпает (иначе с выключенным экраном следующий трек не включится).
+  bool get active => playing || _switching;
 
   /// Откуда играет текущий трек (кэш или сеть), кодек и битрейт.
   PlaySourceDto? stream;
@@ -149,6 +164,7 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> stopWave() async {
     _finishCurrent(skipped: true);
+    _switching = false;
     _stopWaveSession();
     await _player.stop();
     _queue = const [];
@@ -168,6 +184,12 @@ class PlayerController extends ChangeNotifier {
     if (i < 0 && waveActive) {
       await _loadMoreWave();
       i = _findAvailable(_index + 1, 1);
+    }
+    if (i < 0) {
+      // Очередь кончилась.
+      _switching = false;
+      notifyListeners();
+      return;
     }
     await _playAt(i);
   }
@@ -202,11 +224,17 @@ class PlayerController extends ChangeNotifier {
     }
   }
 
-  Future<void> playOrPause() => _player.playOrPause();
+  Future<void> playOrPause() {
+    _switching = false;
+    return _player.playOrPause();
+  }
 
   Future<void> play() => _player.play();
 
-  Future<void> pause() => _player.pause();
+  Future<void> pause() {
+    _switching = false;
+    return _player.pause();
+  }
 
   Future<void> seek(Duration position) => _player.seek(position);
 
@@ -259,6 +287,7 @@ class PlayerController extends ChangeNotifier {
     final request = ++_request;
     _index = i;
     loading = true;
+    _switching = true;
     error = null;
     notifyListeners();
     try {
@@ -278,6 +307,7 @@ class PlayerController extends ChangeNotifier {
     } catch (e) {
       if (request != _request) return;
       error = errorText(e);
+      _switching = false;
     } finally {
       if (request == _request) {
         loading = false;
