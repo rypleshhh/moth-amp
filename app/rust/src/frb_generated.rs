@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -102165607;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1349009599;
 
 // Section: executor
 
@@ -82,6 +82,42 @@ fn wire__crate__api__yandex__account_impl(
         },
     )
 }
+fn wire__crate__api__yandex__album_tracks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "album_tracks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::yandex::album_tracks(api_id).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__yandex__app_init_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -112,6 +148,78 @@ fn wire__crate__api__yandex__app_init_impl(
                         let output_ok = crate::api::yandex::app_init(api_data_dir)?;
                         std::result::Result::Ok(output_ok)
                     })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__yandex__artist_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "artist_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::yandex::artist_page(api_id).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__yandex__artist_tracks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "artist_tracks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::yandex::artist_tracks(api_id).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
                 )
             }
         },
@@ -287,6 +395,45 @@ fn wire__crate__api__cache__cache_mirror_to_s3_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
                         let output_ok = crate::api::cache::cache_mirror_to_s3().await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__cache__cache_place_folder_cover_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "cache_place_folder_cover",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_folder = <String>::sse_decode(&mut deserializer);
+            let api_cover_url = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::cache::cache_place_folder_cover(api_folder, api_cover_url)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -997,6 +1144,41 @@ fn wire__crate__api__yandex__is_logged_in_impl(
         },
     )
 }
+fn wire__crate__api__yandex__liked_albums_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "liked_albums",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::yandex::liked_albums().await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__yandex__liked_tracks_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1126,11 +1308,13 @@ fn wire__crate__api__yandex__playlist_tracks_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_id = <String>::sse_decode(&mut deserializer);
+            let api_owner_uid = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::yandex::playlist_tracks(api_id).await?;
+                        let output_ok =
+                            crate::api::yandex::playlist_tracks(api_id, api_owner_uid).await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1413,6 +1597,42 @@ fn wire__crate__api__yandex__search_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
                         let output_ok = crate::api::yandex::search(api_query).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__yandex__search_all_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "search_all",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_query = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::yandex::search_all(api_query).await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1712,6 +1932,58 @@ impl SseDecode for crate::api::yandex::AccountDto {
     }
 }
 
+impl SseDecode for crate::api::yandex::AlbumDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_artists = <String>::sse_decode(deserializer);
+        let mut var_year = <Option<u32>>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_trackCount = <Option<u32>>::sse_decode(deserializer);
+        let mut var_folderName = <String>::sse_decode(deserializer);
+        return crate::api::yandex::AlbumDto {
+            id: var_id,
+            title: var_title,
+            artists: var_artists,
+            year: var_year,
+            cover_url: var_coverUrl,
+            track_count: var_trackCount,
+            folder_name: var_folderName,
+        };
+    }
+}
+
+impl SseDecode for crate::api::yandex::ArtistDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        return crate::api::yandex::ArtistDto {
+            id: var_id,
+            name: var_name,
+            cover_url: var_coverUrl,
+        };
+    }
+}
+
+impl SseDecode for crate::api::yandex::ArtistPageDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_artist = <crate::api::yandex::ArtistDto>::sse_decode(deserializer);
+        let mut var_popularTracks = <Vec<crate::api::yandex::TrackDto>>::sse_decode(deserializer);
+        let mut var_albums = <Vec<crate::api::yandex::AlbumDto>>::sse_decode(deserializer);
+        let mut var_alsoAlbums = <Vec<crate::api::yandex::AlbumDto>>::sse_decode(deserializer);
+        return crate::api::yandex::ArtistPageDto {
+            artist: var_artist,
+            popular_tracks: var_popularTracks,
+            albums: var_albums,
+            also_albums: var_alsoAlbums,
+        };
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1868,6 +2140,30 @@ impl SseDecode for Vec<String> {
     }
 }
 
+impl SseDecode for Vec<crate::api::yandex::AlbumDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::yandex::AlbumDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::yandex::ArtistDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::yandex::ArtistDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::eq::EqBandDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1986,10 +2282,14 @@ impl SseDecode for crate::api::yandex::PlaylistDto {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_trackCount = <Option<u32>>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_ownerUid = <Option<String>>::sse_decode(deserializer);
         return crate::api::yandex::PlaylistDto {
             id: var_id,
             title: var_title,
             track_count: var_trackCount,
+            cover_url: var_coverUrl,
+            owner_uid: var_ownerUid,
         };
     }
 }
@@ -2042,6 +2342,24 @@ impl SseDecode for crate::api::s3::S3UploadResultDto {
         return crate::api::s3::S3UploadResultDto {
             uploaded: var_uploaded,
             failed: var_failed,
+        };
+    }
+}
+
+impl SseDecode for crate::api::yandex::SearchDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_best = <Option<String>>::sse_decode(deserializer);
+        let mut var_artists = <Vec<crate::api::yandex::ArtistDto>>::sse_decode(deserializer);
+        let mut var_albums = <Vec<crate::api::yandex::AlbumDto>>::sse_decode(deserializer);
+        let mut var_playlists = <Vec<crate::api::yandex::PlaylistDto>>::sse_decode(deserializer);
+        let mut var_tracks = <Vec<crate::api::yandex::TrackDto>>::sse_decode(deserializer);
+        return crate::api::yandex::SearchDto {
+            best: var_best,
+            artists: var_artists,
+            albums: var_albums,
+            playlists: var_playlists,
+            tracks: var_tracks,
         };
     }
 }
@@ -2119,44 +2437,57 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__yandex__account_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__yandex__app_init_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__cache__cache_backfill_meta_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__cache__cache_clear_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__cache__cache_download_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__cache__cache_init_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__cache__cache_mirror_to_s3_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__cache__cache_place_in_folder_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__cache__cache_set_auto_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__cache__cache_set_folder_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__cache__cache_set_limit_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__cache__cache_stats_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__cache__cached_ids_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__cache__cached_tracks_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__eq__eq_load_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__eq__eq_save_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__eq__eq_sync_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__yandex__finish_login_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__yandex__init_app_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__yandex__is_logged_in_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__yandex__liked_tracks_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__yandex__logout_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__cache__play_source_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__yandex__playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__yandex__playlists_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__s3__s3_connect_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__s3__s3_delete_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__s3__s3_disconnect_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__s3__s3_status_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__s3__s3_tracks_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__s3__s3_upload_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__yandex__search_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__yandex__start_login_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__yandex__stream_url_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__wave__wave_more_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__wave__wave_start_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__wave__wave_stop_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__wave__wave_track_ended_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__wave__wave_track_started_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__yandex__album_tracks_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__yandex__app_init_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__yandex__artist_page_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__yandex__artist_tracks_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__cache__cache_backfill_meta_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__cache__cache_clear_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__cache__cache_download_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__cache__cache_init_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__cache__cache_mirror_to_s3_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__cache__cache_place_folder_cover_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        12 => {
+            wire__crate__api__cache__cache_place_in_folder_impl(port, ptr, rust_vec_len, data_len)
+        }
+        13 => wire__crate__api__cache__cache_set_auto_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__cache__cache_set_folder_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__cache__cache_set_limit_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__cache__cache_stats_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__cache__cached_ids_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__cache__cached_tracks_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__eq__eq_load_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__eq__eq_save_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__eq__eq_sync_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__yandex__finish_login_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__yandex__init_app_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__yandex__is_logged_in_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__yandex__liked_albums_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__yandex__liked_tracks_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__yandex__logout_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__cache__play_source_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__yandex__playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__yandex__playlists_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__s3__s3_connect_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__s3__s3_delete_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__s3__s3_disconnect_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__s3__s3_status_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__s3__s3_tracks_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__s3__s3_upload_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__yandex__search_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__yandex__search_all_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__yandex__start_login_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__yandex__stream_url_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__wave__wave_more_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__wave__wave_start_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__wave__wave_stop_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__wave__wave_track_ended_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__wave__wave_track_started_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2169,14 +2500,14 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        15 => wire__crate__api__eq__eq_auto_preamp_impl(ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__eq__eq_builtin_presets_impl(ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__eq__eq_effective_preamp_impl(ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__eq__eq_flat_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__eq__eq_parse_autoeq_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__eq__eq_response_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__eq__eq_to_filter_impl(ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__eq__eq_with_mode_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__eq__eq_auto_preamp_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__eq__eq_builtin_presets_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__eq__eq_effective_preamp_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__eq__eq_flat_impl(ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__eq__eq_parse_autoeq_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__eq__eq_response_impl(ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__eq__eq_to_filter_impl(ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__eq__eq_with_mode_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2202,6 +2533,71 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::AccountDto>
     for crate::api::yandex::AccountDto
 {
     fn into_into_dart(self) -> crate::api::yandex::AccountDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::yandex::AlbumDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.artists.into_into_dart().into_dart(),
+            self.year.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+            self.track_count.into_into_dart().into_dart(),
+            self.folder_name.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::yandex::AlbumDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::AlbumDto>
+    for crate::api::yandex::AlbumDto
+{
+    fn into_into_dart(self) -> crate::api::yandex::AlbumDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::yandex::ArtistDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::yandex::ArtistDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::ArtistDto>
+    for crate::api::yandex::ArtistDto
+{
+    fn into_into_dart(self) -> crate::api::yandex::ArtistDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::yandex::ArtistPageDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.artist.into_into_dart().into_dart(),
+            self.popular_tracks.into_into_dart().into_dart(),
+            self.albums.into_into_dart().into_dart(),
+            self.also_albums.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::yandex::ArtistPageDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::ArtistPageDto>
+    for crate::api::yandex::ArtistPageDto
+{
+    fn into_into_dart(self) -> crate::api::yandex::ArtistPageDto {
         self
     }
 }
@@ -2391,6 +2787,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::yandex::PlaylistDto {
             self.id.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
             self.track_count.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+            self.owner_uid.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2472,6 +2870,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::s3::S3UploadResultDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::yandex::SearchDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.best.into_into_dart().into_dart(),
+            self.artists.into_into_dart().into_dart(),
+            self.albums.into_into_dart().into_dart(),
+            self.playlists.into_into_dart().into_dart(),
+            self.tracks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::yandex::SearchDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::yandex::SearchDto>
+    for crate::api::yandex::SearchDto
+{
+    fn into_into_dart(self) -> crate::api::yandex::SearchDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::yandex::StreamDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2538,6 +2957,38 @@ impl SseEncode for crate::api::yandex::AccountDto {
         <String>::sse_encode(self.uid, serializer);
         <String>::sse_encode(self.name, serializer);
         <bool>::sse_encode(self.has_plus, serializer);
+    }
+}
+
+impl SseEncode for crate::api::yandex::AlbumDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.artists, serializer);
+        <Option<u32>>::sse_encode(self.year, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+        <Option<u32>>::sse_encode(self.track_count, serializer);
+        <String>::sse_encode(self.folder_name, serializer);
+    }
+}
+
+impl SseEncode for crate::api::yandex::ArtistDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+    }
+}
+
+impl SseEncode for crate::api::yandex::ArtistPageDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::yandex::ArtistDto>::sse_encode(self.artist, serializer);
+        <Vec<crate::api::yandex::TrackDto>>::sse_encode(self.popular_tracks, serializer);
+        <Vec<crate::api::yandex::AlbumDto>>::sse_encode(self.albums, serializer);
+        <Vec<crate::api::yandex::AlbumDto>>::sse_encode(self.also_albums, serializer);
     }
 }
 
@@ -2670,6 +3121,26 @@ impl SseEncode for Vec<String> {
     }
 }
 
+impl SseEncode for Vec<crate::api::yandex::AlbumDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::yandex::AlbumDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::yandex::ArtistDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::yandex::ArtistDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::eq::EqBandDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2767,6 +3238,8 @@ impl SseEncode for crate::api::yandex::PlaylistDto {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.title, serializer);
         <Option<u32>>::sse_encode(self.track_count, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+        <Option<String>>::sse_encode(self.owner_uid, serializer);
     }
 }
 
@@ -2799,6 +3272,17 @@ impl SseEncode for crate::api::s3::S3UploadResultDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.uploaded, serializer);
         <Vec<String>>::sse_encode(self.failed, serializer);
+    }
+}
+
+impl SseEncode for crate::api::yandex::SearchDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.best, serializer);
+        <Vec<crate::api::yandex::ArtistDto>>::sse_encode(self.artists, serializer);
+        <Vec<crate::api::yandex::AlbumDto>>::sse_encode(self.albums, serializer);
+        <Vec<crate::api::yandex::PlaylistDto>>::sse_encode(self.playlists, serializer);
+        <Vec<crate::api::yandex::TrackDto>>::sse_encode(self.tracks, serializer);
     }
 }
 

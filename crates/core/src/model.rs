@@ -75,6 +75,73 @@ pub struct Playlist {
     pub key: PlaylistKey,
     pub title: String,
     pub track_count: Option<u32>,
+    pub cover_url: Option<String>,
+    /// uid владельца: нужен, чтобы открыть чужой плейлист (из поиска).
+    pub owner_uid: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtistSummary {
+    pub id: String,
+    pub name: String,
+    pub cover_url: Option<String>,
+}
+
+/// Страница исполнителя.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtistPage {
+    pub artist: ArtistSummary,
+    pub popular_tracks: Vec<Track>,
+    /// Свои альбомы.
+    pub albums: Vec<AlbumSummary>,
+    /// Сборники и альбомы с участием.
+    pub also_albums: Vec<AlbumSummary>,
+}
+
+/// Результаты общего поиска по разделам.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SearchResults {
+    /// Тип лучшего совпадения: `artist`, `album`, `track`, `playlist`.
+    pub best: Option<String>,
+    pub artists: Vec<ArtistSummary>,
+    pub albums: Vec<AlbumSummary>,
+    pub playlists: Vec<Playlist>,
+    pub tracks: Vec<Track>,
+}
+
+/// Альбом в списке (лайкнутые альбомы и т.п.).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlbumSummary {
+    pub id: String,
+    pub title: String,
+    pub artists: Vec<Artist>,
+    pub year: Option<u32>,
+    pub cover_url: Option<String>,
+    pub track_count: Option<u32>,
+}
+
+impl AlbumSummary {
+    pub fn artist_line(&self) -> String {
+        self.artists
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Имя папки для скачанного альбома: «Исполнитель — Альбом (год)».
+    pub fn folder_name(&self) -> String {
+        let artists = self.artist_line();
+        let base = if artists.is_empty() {
+            self.title.clone()
+        } else {
+            format!("{artists} — {}", self.title)
+        };
+        match self.year {
+            Some(y) => format!("{base} ({y})"),
+            None => base,
+        }
+    }
 }
 
 /// Желаемое качество потока.

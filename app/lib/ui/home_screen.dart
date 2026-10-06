@@ -5,7 +5,10 @@ import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import '../audio/downloads.dart';
 import '../src/rust/api/cache.dart';
+import 'albums_tab.dart';
 import 'cache_dialog.dart';
+import 'collection_tiles.dart';
+import 'search_tab.dart';
 import 'deck.dart';
 import 'theme.dart';
 import 'my_music_tab.dart';
@@ -42,7 +45,8 @@ class HomeScreen extends StatelessWidget {
         WaveTab(player: player),
         TrackList(load: likedTracks, player: player),
         _PlaylistsTab(player: player, eq: eq),
-        _SearchTab(player: player),
+        AlbumsTab(player: player, eq: eq),
+        SearchTab(player: player, eq: eq),
         // Из кэша, без сети. Перезагружается, когда меняется состав кэша.
         TrackList(
           key: ValueKey(DownloadsScope.of(context).version),
@@ -53,7 +57,7 @@ class HomeScreen extends StatelessWidget {
       ],
     );
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         appBar: AppBar(
           title: Row(
@@ -101,6 +105,7 @@ class HomeScreen extends StatelessWidget {
               Tab(text: 'моя волна'),
               Tab(text: 'мне нравится'),
               Tab(text: 'плейлисты'),
+              Tab(text: 'альбомы'),
               Tab(text: 'поиск'),
               Tab(text: 'скачанное'),
               Tab(text: 'моя музыка'),
@@ -157,89 +162,14 @@ class _PlaylistsTabState extends State<_PlaylistsTab>
         return ListView.builder(
           itemCount: list.length,
           itemBuilder: (context, i) {
-            final p = list[i];
-            return ListTile(
-              leading: const Icon(Icons.queue_music),
-              title: Text(p.title),
-              trailing: p.trackCount == null ? null : Text('${p.trackCount}'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(
-                      title: Text(p.title),
-                      actions: [
-                        PlaylistDownloadButton(
-                          name: p.title,
-                          load: () => playlistTracks(id: p.id),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                    ),
-                    body: TrackList(
-                      load: () => playlistTracks(id: p.id),
-                      player: widget.player,
-                    ),
-                    bottomNavigationBar: PlayerBar(
-                      player: widget.player,
-                      eq: widget.eq,
-                    ),
-                  ),
-                ),
-              ),
+            return PlaylistTile(
+              playlist: list[i],
+              player: widget.player,
+              eq: widget.eq,
             );
           },
         );
       },
-    );
-  }
-}
-
-class _SearchTab extends StatefulWidget {
-  const _SearchTab({required this.player});
-
-  final PlayerController player;
-
-  @override
-  State<_SearchTab> createState() => _SearchTabState();
-}
-
-class _SearchTabState extends State<_SearchTab>
-    with AutomaticKeepAliveClientMixin {
-  String? _query;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final query = _query;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Исполнитель, трек, альбом',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.search,
-            onSubmitted: (v) {
-              if (v.trim().isNotEmpty) setState(() => _query = v.trim());
-            },
-          ),
-        ),
-        Expanded(
-          child: query == null
-              ? const SizedBox.shrink()
-              : TrackList(
-                  key: ValueKey(query),
-                  load: () => search(query: query),
-                  player: widget.player,
-                ),
-        ),
-      ],
     );
   }
 }

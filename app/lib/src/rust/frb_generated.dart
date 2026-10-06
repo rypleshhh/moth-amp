@@ -73,7 +73,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -102165607;
+  int get rustContentHash => -1349009599;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -87,7 +87,13 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 abstract class RustLibApi extends BaseApi {
   Future<AccountDto> crateApiYandexAccount();
 
+  Future<List<TrackDto>> crateApiYandexAlbumTracks({required String id});
+
   Future<void> crateApiYandexAppInit({required String dataDir});
+
+  Future<ArtistPageDto> crateApiYandexArtistPage({required String id});
+
+  Future<List<TrackDto>> crateApiYandexArtistTracks({required String id});
 
   Future<int> crateApiCacheCacheBackfillMeta();
 
@@ -101,6 +107,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<int> crateApiCacheCacheMirrorToS3();
+
+  Future<void> crateApiCacheCachePlaceFolderCover({
+    required String folder,
+    required String coverUrl,
+  });
 
   Future<void> crateApiCacheCachePlaceInFolder({
     required String trackId,
@@ -156,13 +167,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiYandexIsLoggedIn();
 
+  Future<List<AlbumDto>> crateApiYandexLikedAlbums();
+
   Future<List<TrackDto>> crateApiYandexLikedTracks();
 
   Future<void> crateApiYandexLogout();
 
   Future<PlaySourceDto> crateApiCachePlaySource({required TrackDto track});
 
-  Future<List<TrackDto>> crateApiYandexPlaylistTracks({required String id});
+  Future<List<TrackDto>> crateApiYandexPlaylistTracks({
+    required String id,
+    String? ownerUid,
+  });
 
   Future<List<PlaylistDto>> crateApiYandexPlaylists();
 
@@ -179,6 +195,8 @@ abstract class RustLibApi extends BaseApi {
   Future<S3UploadResultDto> crateApiS3S3Upload({required List<String> paths});
 
   Future<List<TrackDto>> crateApiYandexSearch({required String query});
+
+  Future<SearchDto> crateApiYandexSearchAll({required String query});
 
   Future<DeviceCodeDto> crateApiYandexStartLogin();
 
@@ -238,6 +256,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "account", argNames: []);
 
   @override
+  Future<List<TrackDto>> crateApiYandexAlbumTracks({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_track_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiYandexAlbumTracksConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiYandexAlbumTracksConstMeta =>
+      const TaskConstMeta(debugName: "album_tracks", argNames: ["id"]);
+
+  @override
   Future<void> crateApiYandexAppInit({required String dataDir}) {
     return handler.executeNormal(
       NormalTask(
@@ -247,7 +293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 3,
             port: port_,
           );
         },
@@ -266,6 +312,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "app_init", argNames: ["dataDir"]);
 
   @override
+  Future<ArtistPageDto> crateApiYandexArtistPage({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_artist_page_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiYandexArtistPageConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiYandexArtistPageConstMeta =>
+      const TaskConstMeta(debugName: "artist_page", argNames: ["id"]);
+
+  @override
+  Future<List<TrackDto>> crateApiYandexArtistTracks({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_track_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiYandexArtistTracksConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiYandexArtistTracksConstMeta =>
+      const TaskConstMeta(debugName: "artist_tracks", argNames: ["id"]);
+
+  @override
   Future<int> crateApiCacheCacheBackfillMeta() {
     return handler.executeNormal(
       NormalTask(
@@ -274,7 +376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 6,
             port: port_,
           );
         },
@@ -301,7 +403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 7,
             port: port_,
           );
         },
@@ -329,7 +431,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 8,
             port: port_,
           );
         },
@@ -361,7 +463,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 9,
             port: port_,
           );
         },
@@ -390,7 +492,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 10,
             port: port_,
           );
         },
@@ -409,6 +511,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "cache_mirror_to_s3", argNames: []);
 
   @override
+  Future<void> crateApiCacheCachePlaceFolderCover({
+    required String folder,
+    required String coverUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(folder, serializer);
+          sse_encode_String(coverUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCacheCachePlaceFolderCoverConstMeta,
+        argValues: [folder, coverUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCacheCachePlaceFolderCoverConstMeta =>
+      const TaskConstMeta(
+        debugName: "cache_place_folder_cover",
+        argNames: ["folder", "coverUrl"],
+      );
+
+  @override
   Future<void> crateApiCacheCachePlaceInFolder({
     required String trackId,
     required String folder,
@@ -422,7 +559,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 12,
             port: port_,
           );
         },
@@ -453,7 +590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 13,
             port: port_,
           );
         },
@@ -481,7 +618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 14,
             port: port_,
           );
         },
@@ -509,7 +646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 15,
             port: port_,
           );
         },
@@ -536,7 +673,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 16,
             port: port_,
           );
         },
@@ -563,7 +700,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 17,
             port: port_,
           );
         },
@@ -590,7 +727,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 18,
             port: port_,
           );
         },
@@ -615,7 +752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_f_32,
@@ -638,7 +775,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_eq_mode_dto(mode, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_eq_preset_dto,
@@ -661,7 +798,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_f_32,
@@ -687,7 +824,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_eq_mode_dto(mode, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_eq_settings_dto,
@@ -713,7 +850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 23,
             port: port_,
           );
         },
@@ -738,7 +875,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(text, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_eq_settings_dto,
@@ -765,7 +902,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
           sse_encode_u_32(points, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_prim_f_32_strict,
@@ -797,7 +934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 26,
             port: port_,
           );
         },
@@ -825,7 +962,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 27,
             port: port_,
           );
         },
@@ -850,7 +987,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -877,7 +1014,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
           sse_encode_eq_mode_dto(mode, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_eq_settings_dto,
@@ -904,7 +1041,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 30,
             port: port_,
           );
         },
@@ -931,7 +1068,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 31,
             port: port_,
           );
         },
@@ -958,7 +1095,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 32,
             port: port_,
           );
         },
@@ -977,6 +1114,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "is_logged_in", argNames: []);
 
   @override
+  Future<List<AlbumDto>> crateApiYandexLikedAlbums() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_album_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiYandexLikedAlbumsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiYandexLikedAlbumsConstMeta =>
+      const TaskConstMeta(debugName: "liked_albums", argNames: []);
+
+  @override
   Future<List<TrackDto>> crateApiYandexLikedTracks() {
     return handler.executeNormal(
       NormalTask(
@@ -985,7 +1149,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1012,7 +1176,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1040,7 +1204,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1059,16 +1223,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "play_source", argNames: ["track"]);
 
   @override
-  Future<List<TrackDto>> crateApiYandexPlaylistTracks({required String id}) {
+  Future<List<TrackDto>> crateApiYandexPlaylistTracks({
+    required String id,
+    String? ownerUid,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(id, serializer);
+          sse_encode_opt_String(ownerUid, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1077,14 +1245,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiYandexPlaylistTracksConstMeta,
-        argValues: [id],
+        argValues: [id, ownerUid],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiYandexPlaylistTracksConstMeta =>
-      const TaskConstMeta(debugName: "playlist_tracks", argNames: ["id"]);
+      const TaskConstMeta(
+        debugName: "playlist_tracks",
+        argNames: ["id", "ownerUid"],
+      );
 
   @override
   Future<List<PlaylistDto>> crateApiYandexPlaylists() {
@@ -1095,7 +1266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1123,7 +1294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1151,7 +1322,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1178,7 +1349,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1205,7 +1376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1232,7 +1403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1260,7 +1431,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1288,7 +1459,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1307,6 +1478,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "search", argNames: ["query"]);
 
   @override
+  Future<SearchDto> crateApiYandexSearchAll({required String query}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(query, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 46,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_search_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiYandexSearchAllConstMeta,
+        argValues: [query],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiYandexSearchAllConstMeta =>
+      const TaskConstMeta(debugName: "search_all", argNames: ["query"]);
+
+  @override
   Future<DeviceCodeDto> crateApiYandexStartLogin() {
     return handler.executeNormal(
       NormalTask(
@@ -1315,7 +1514,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1347,7 +1546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1376,7 +1575,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1404,7 +1603,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1431,7 +1630,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1465,7 +1664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1495,7 +1694,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1538,6 +1737,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       uid: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       hasPlus: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  AlbumDto dco_decode_album_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return AlbumDto(
+      id: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      artists: dco_decode_String(arr[2]),
+      year: dco_decode_opt_box_autoadd_u_32(arr[3]),
+      coverUrl: dco_decode_opt_String(arr[4]),
+      trackCount: dco_decode_opt_box_autoadd_u_32(arr[5]),
+      folderName: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
+  ArtistDto dco_decode_artist_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ArtistDto(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      coverUrl: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  ArtistPageDto dco_decode_artist_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ArtistPageDto(
+      artist: dco_decode_artist_dto(arr[0]),
+      popularTracks: dco_decode_list_track_dto(arr[1]),
+      albums: dco_decode_list_album_dto(arr[2]),
+      alsoAlbums: dco_decode_list_album_dto(arr[3]),
     );
   }
 
@@ -1695,6 +1938,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<AlbumDto> dco_decode_list_album_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_album_dto).toList();
+  }
+
+  @protected
+  List<ArtistDto> dco_decode_list_artist_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_artist_dto).toList();
+  }
+
+  @protected
   List<EqBandDto> dco_decode_list_eq_band_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_eq_band_dto).toList();
@@ -1761,12 +2016,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlaylistDto dco_decode_playlist_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return PlaylistDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
       trackCount: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      coverUrl: dco_decode_opt_String(arr[3]),
+      ownerUid: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -1811,6 +2068,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return S3UploadResultDto(
       uploaded: dco_decode_u_32(arr[0]),
       failed: dco_decode_list_String(arr[1]),
+    );
+  }
+
+  @protected
+  SearchDto dco_decode_search_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return SearchDto(
+      best: dco_decode_opt_String(arr[0]),
+      artists: dco_decode_list_artist_dto(arr[1]),
+      albums: dco_decode_list_album_dto(arr[2]),
+      playlists: dco_decode_list_playlist_dto(arr[3]),
+      tracks: dco_decode_list_track_dto(arr[4]),
     );
   }
 
@@ -1887,6 +2159,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_name = sse_decode_String(deserializer);
     var var_hasPlus = sse_decode_bool(deserializer);
     return AccountDto(uid: var_uid, name: var_name, hasPlus: var_hasPlus);
+  }
+
+  @protected
+  AlbumDto sse_decode_album_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_artists = sse_decode_String(deserializer);
+    var var_year = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_coverUrl = sse_decode_opt_String(deserializer);
+    var var_trackCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_folderName = sse_decode_String(deserializer);
+    return AlbumDto(
+      id: var_id,
+      title: var_title,
+      artists: var_artists,
+      year: var_year,
+      coverUrl: var_coverUrl,
+      trackCount: var_trackCount,
+      folderName: var_folderName,
+    );
+  }
+
+  @protected
+  ArtistDto sse_decode_artist_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_coverUrl = sse_decode_opt_String(deserializer);
+    return ArtistDto(id: var_id, name: var_name, coverUrl: var_coverUrl);
+  }
+
+  @protected
+  ArtistPageDto sse_decode_artist_page_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_artist = sse_decode_artist_dto(deserializer);
+    var var_popularTracks = sse_decode_list_track_dto(deserializer);
+    var var_albums = sse_decode_list_album_dto(deserializer);
+    var var_alsoAlbums = sse_decode_list_album_dto(deserializer);
+    return ArtistPageDto(
+      artist: var_artist,
+      popularTracks: var_popularTracks,
+      albums: var_albums,
+      alsoAlbums: var_alsoAlbums,
+    );
   }
 
   @protected
@@ -2052,6 +2369,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<AlbumDto> sse_decode_list_album_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AlbumDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_album_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ArtistDto> sse_decode_list_artist_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ArtistDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_artist_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<EqBandDto> sse_decode_list_eq_band_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2160,10 +2501,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_id = sse_decode_String(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_trackCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_coverUrl = sse_decode_opt_String(deserializer);
+    var var_ownerUid = sse_decode_opt_String(deserializer);
     return PlaylistDto(
       id: var_id,
       title: var_title,
       trackCount: var_trackCount,
+      coverUrl: var_coverUrl,
+      ownerUid: var_ownerUid,
     );
   }
 
@@ -2213,6 +2558,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_uploaded = sse_decode_u_32(deserializer);
     var var_failed = sse_decode_list_String(deserializer);
     return S3UploadResultDto(uploaded: var_uploaded, failed: var_failed);
+  }
+
+  @protected
+  SearchDto sse_decode_search_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_best = sse_decode_opt_String(deserializer);
+    var var_artists = sse_decode_list_artist_dto(deserializer);
+    var var_albums = sse_decode_list_album_dto(deserializer);
+    var var_playlists = sse_decode_list_playlist_dto(deserializer);
+    var var_tracks = sse_decode_list_track_dto(deserializer);
+    return SearchDto(
+      best: var_best,
+      artists: var_artists,
+      albums: var_albums,
+      playlists: var_playlists,
+      tracks: var_tracks,
+    );
   }
 
   @protected
@@ -2295,6 +2657,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.uid, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_bool(self.hasPlus, serializer);
+  }
+
+  @protected
+  void sse_encode_album_dto(AlbumDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.artists, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.year, serializer);
+    sse_encode_opt_String(self.coverUrl, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.trackCount, serializer);
+    sse_encode_String(self.folderName, serializer);
+  }
+
+  @protected
+  void sse_encode_artist_dto(ArtistDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.coverUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_artist_page_dto(
+    ArtistPageDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_artist_dto(self.artist, serializer);
+    sse_encode_list_track_dto(self.popularTracks, serializer);
+    sse_encode_list_album_dto(self.albums, serializer);
+    sse_encode_list_album_dto(self.alsoAlbums, serializer);
   }
 
   @protected
@@ -2448,6 +2842,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_album_dto(
+    List<AlbumDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_album_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_artist_dto(
+    List<ArtistDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_artist_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_eq_band_dto(
     List<EqBandDto> self,
     SseSerializer serializer,
@@ -2554,6 +2972,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_opt_box_autoadd_u_32(self.trackCount, serializer);
+    sse_encode_opt_String(self.coverUrl, serializer);
+    sse_encode_opt_String(self.ownerUid, serializer);
   }
 
   @protected
@@ -2586,6 +3006,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.uploaded, serializer);
     sse_encode_list_String(self.failed, serializer);
+  }
+
+  @protected
+  void sse_encode_search_dto(SearchDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.best, serializer);
+    sse_encode_list_artist_dto(self.artists, serializer);
+    sse_encode_list_album_dto(self.albums, serializer);
+    sse_encode_list_playlist_dto(self.playlists, serializer);
+    sse_encode_list_track_dto(self.tracks, serializer);
   }
 
   @protected

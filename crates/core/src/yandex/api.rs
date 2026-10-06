@@ -13,13 +13,15 @@ use serde::de::DeserializeOwned;
 use tokio::sync::Mutex;
 
 use crate::auth::{TokenSet, TokenStore};
-use crate::model::{Account, Playlist, Quality, StreamInfo, Track};
+use crate::model::{
+    Account, AlbumSummary, ArtistPage, Playlist, Quality, SearchResults, StreamInfo, Track,
+};
 use crate::{Error, Result};
 
 use super::download::{build_direct_url, parse_download_xml, pick_variant};
 use super::dto::{
-    AccountStatus, DownloadInfo, Envelope, LikesResult, SearchResult, TrackShort, YPlaylist,
-    YTrack,
+    AccountStatus, DownloadInfo, Envelope, LikesResult, SearchResult, TrackShort, YAlbumInfo,
+    YArtistBrief, YArtistTracks, YLikedAlbum, YPlaylist, YSearchAll, YTrack,
 };
 use super::oauth::{OAuthClient, DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET};
 
@@ -27,6 +29,9 @@ pub const API_BASE: &str = "https://api.music.yandex.net";
 
 /// Обновлять токен, если до истечения осталось меньше суток.
 const REFRESH_MARGIN_SECS: u64 = 24 * 60 * 60;
+
+/// Сколько треков исполнителя загружать максимум (у некоторых их тысячи).
+const ARTIST_TRACKS_LIMIT: usize = 500;
 
 /// Сколько треков запрашивать за один вызов `/tracks`.
 const TRACKS_BATCH: usize = 200;
@@ -215,6 +220,70 @@ impl ApiClient {
             full.extend(self.tracks(&missing).await?);
         }
         Ok(full)
+    }
+
+    /// Лайкнутые альбомы.
+    pub async fn liked_albums(&self, uid: &str) -> Result<Vec<AlbumSummary>> {
+        let list: Vec<YLikedAlbum> = self
+            .get(&format!("/users/{uid}/likes/albums"), &[("rich", "true")])
+            .await?;
+        Ok(list
+            .into_iter()
+            .filter_map(|x| x.album)
+            .map(|a| a.summary())
+            .collect())
+    }
+
+    /// Альбом и его треки (все диски подряд).
+    pub async fn album_with_tracks(&self, album_id: &str) -> Result<(AlbumSummary, Vec<Track>)> {
+        let album: YAlbumInfo = self
+            .get(&format!("/albums/{album_id}/with-tracks"), &[])
+            .await?;
+        let summary = album.summary();
+        let tracks = album.volumes.into_iter().flatten().map(Track::from).collect();
+        Ok((summary, tracks))
+    }
+
+    /// Общий поиск: исполнители, альбомы, плейлисты, треки.
+    pub async fn search_all(&self, text: &str) -> Result<SearchResults> {
+        let r: YSearchAll = self
+            .get(
+                "/search",
+                &[("text", text), ("type", "all"), ("page", "0"), ("nocorrect", "false")],
+            )
+            .await?;
+        Ok(r.into_results())
+    }
+
+    /// Страница исполнителя: популярные треки, альбомы, сборники.
+    pub async fn artist_page(&self, artist_id: &str) -> Result<ArtistPage> {
+        let b: YArtistBrief = self
+            .get(&format!("/artists/{artist_id}/brief-info"), &[])
+            .await?;
+        Ok(b.into_page())
+    }
+
+    /// Все треки исполнителя (постранично, не больше [`ARTIST_TRACKS_LIMIT`]).
+    pub async fn artist_tracks(&self, artist_id: &str) -> Result<Vec<Track>> {
+        let mut out = Vec::new();
+        let mut page = 0u32;
+        loop {
+            let page_str = page.to_string();
+            let r: YArtistTracks = self
+                .get(
+                    &format!("/artists/{artist_id}/tracks"),
+                    &[("page", &page_str), ("page-size", "100")],
+                )
+                .await?;
+            let got = r.tracks.len();
+            out.extend(r.tracks.into_iter().map(Track::from));
+            let total = r.pager.map_or(0, |p| p.total) as usize;
+            if got == 0 || out.len() >= total || out.len() >= ARTIST_TRACKS_LIMIT {
+                break;
+            }
+            page += 1;
+        }
+        Ok(out)
     }
 
     pub async fn search_tracks(&self, text: &str) -> Result<Vec<Track>> {

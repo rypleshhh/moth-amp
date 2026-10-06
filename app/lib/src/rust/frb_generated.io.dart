@@ -35,6 +35,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AccountDto dco_decode_account_dto(dynamic raw);
 
   @protected
+  AlbumDto dco_decode_album_dto(dynamic raw);
+
+  @protected
+  ArtistDto dco_decode_artist_dto(dynamic raw);
+
+  @protected
+  ArtistPageDto dco_decode_artist_page_dto(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -89,6 +98,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<AlbumDto> dco_decode_list_album_dto(dynamic raw);
+
+  @protected
+  List<ArtistDto> dco_decode_list_artist_dto(dynamic raw);
+
+  @protected
   List<EqBandDto> dco_decode_list_eq_band_dto(dynamic raw);
 
   @protected
@@ -128,6 +143,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   S3UploadResultDto dco_decode_s_3_upload_result_dto(dynamic raw);
 
   @protected
+  SearchDto dco_decode_search_dto(dynamic raw);
+
+  @protected
   StreamDto dco_decode_stream_dto(dynamic raw);
 
   @protected
@@ -150,6 +168,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AccountDto sse_decode_account_dto(SseDeserializer deserializer);
+
+  @protected
+  AlbumDto sse_decode_album_dto(SseDeserializer deserializer);
+
+  @protected
+  ArtistDto sse_decode_artist_dto(SseDeserializer deserializer);
+
+  @protected
+  ArtistPageDto sse_decode_artist_page_dto(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -210,6 +237,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<AlbumDto> sse_decode_list_album_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ArtistDto> sse_decode_list_artist_dto(SseDeserializer deserializer);
+
+  @protected
   List<EqBandDto> sse_decode_list_eq_band_dto(SseDeserializer deserializer);
 
   @protected
@@ -251,6 +284,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SearchDto sse_decode_search_dto(SseDeserializer deserializer);
+
+  @protected
   StreamDto sse_decode_stream_dto(SseDeserializer deserializer);
 
   @protected
@@ -276,6 +312,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_account_dto(AccountDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_album_dto(AlbumDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_artist_dto(ArtistDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_artist_page_dto(ArtistPageDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -344,6 +389,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_album_dto(List<AlbumDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_artist_dto(
+    List<ArtistDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_eq_band_dto(
     List<EqBandDto> self,
     SseSerializer serializer,
@@ -399,6 +453,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     S3UploadResultDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_search_dto(SearchDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_stream_dto(StreamDto self, SseSerializer serializer);

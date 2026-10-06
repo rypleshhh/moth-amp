@@ -122,6 +122,43 @@ pub struct PlaylistDto {
     pub id: String,
     pub title: String,
     pub track_count: Option<u32>,
+    pub cover_url: Option<String>,
+    /// Владелец — для чужих плейлистов из поиска; для своих можно не указывать.
+    pub owner_uid: Option<String>,
+}
+
+pub struct ArtistDto {
+    pub id: String,
+    pub name: String,
+    pub cover_url: Option<String>,
+}
+
+pub struct ArtistPageDto {
+    pub artist: ArtistDto,
+    pub popular_tracks: Vec<TrackDto>,
+    pub albums: Vec<AlbumDto>,
+    /// Сборники и альбомы с участием.
+    pub also_albums: Vec<AlbumDto>,
+}
+
+pub struct SearchDto {
+    /// Тип лучшего совпадения: `artist`, `album`, `track`, `playlist`.
+    pub best: Option<String>,
+    pub artists: Vec<ArtistDto>,
+    pub albums: Vec<AlbumDto>,
+    pub playlists: Vec<PlaylistDto>,
+    pub tracks: Vec<TrackDto>,
+}
+
+pub struct AlbumDto {
+    pub id: String,
+    pub title: String,
+    pub artists: String,
+    pub year: Option<u32>,
+    pub cover_url: Option<String>,
+    pub track_count: Option<u32>,
+    /// Имя папки для скачанного альбома: «Исполнитель — Альбом (год)».
+    pub folder_name: String,
 }
 
 pub struct StreamDto {
@@ -167,6 +204,28 @@ fn playlist_dto(p: Playlist) -> PlaylistDto {
         id: p.key.id,
         title: p.title,
         track_count: p.track_count,
+        cover_url: p.cover_url,
+        owner_uid: p.owner_uid,
+    }
+}
+
+fn artist_dto(a: moth_core::model::ArtistSummary) -> ArtistDto {
+    ArtistDto {
+        id: a.id,
+        name: a.name,
+        cover_url: a.cover_url,
+    }
+}
+
+fn album_dto(a: moth_core::model::AlbumSummary) -> AlbumDto {
+    AlbumDto {
+        folder_name: a.folder_name(),
+        artists: a.artist_line(),
+        id: a.id,
+        title: a.title,
+        year: a.year,
+        cover_url: a.cover_url,
+        track_count: a.track_count,
     }
 }
 
@@ -263,8 +322,68 @@ pub async fn playlists() -> Result<Vec<PlaylistDto>> {
     .await
 }
 
-pub async fn playlist_tracks(id: String) -> Result<Vec<TrackDto>> {
-    run(async move { Ok(track_dtos(provider()?.playlist_tracks(&id).await?)) }).await
+/// Треки плейлиста; `owner_uid` — для чужих плейлистов (из поиска).
+pub async fn playlist_tracks(id: String, owner_uid: Option<String>) -> Result<Vec<TrackDto>> {
+    run(async move {
+        Ok(track_dtos(
+            provider()?
+                .playlist_tracks_of(&id, owner_uid.as_deref())
+                .await?,
+        ))
+    })
+    .await
+}
+
+/// Общий поиск по разделам.
+pub async fn search_all(query: String) -> Result<SearchDto> {
+    run(async move {
+        let r = provider()?.search_all(&query).await?;
+        Ok(SearchDto {
+            best: r.best,
+            artists: r.artists.into_iter().map(artist_dto).collect(),
+            albums: r.albums.into_iter().map(album_dto).collect(),
+            playlists: r.playlists.into_iter().map(playlist_dto).collect(),
+            tracks: track_dtos(r.tracks),
+        })
+    })
+    .await
+}
+
+/// Страница исполнителя.
+pub async fn artist_page(id: String) -> Result<ArtistPageDto> {
+    run(async move {
+        let page = provider()?.artist_page(&id).await?;
+        Ok(ArtistPageDto {
+            artist: artist_dto(page.artist),
+            popular_tracks: track_dtos(page.popular_tracks),
+            albums: page.albums.into_iter().map(album_dto).collect(),
+            also_albums: page.also_albums.into_iter().map(album_dto).collect(),
+        })
+    })
+    .await
+}
+
+/// Все треки исполнителя.
+pub async fn artist_tracks(id: String) -> Result<Vec<TrackDto>> {
+    run(async move { Ok(track_dtos(provider()?.artist_tracks(&id).await?)) }).await
+}
+
+/// Лайкнутые альбомы.
+pub async fn liked_albums() -> Result<Vec<AlbumDto>> {
+    run(async {
+        Ok(provider()?
+            .liked_albums()
+            .await?
+            .into_iter()
+            .map(album_dto)
+            .collect())
+    })
+    .await
+}
+
+/// Треки альбома (все диски подряд).
+pub async fn album_tracks(id: String) -> Result<Vec<TrackDto>> {
+    run(async move { Ok(track_dtos(provider()?.album_tracks(&id).await?)) }).await
 }
 
 pub async fn search(query: String) -> Result<Vec<TrackDto>> {

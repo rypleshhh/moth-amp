@@ -383,6 +383,26 @@ fn track_from_meta(id: String, meta: Option<TrackMeta>) -> TrackDto {
     }
 }
 
+/// Сохранить обложку папки плейлиста или альбома (`folder.jpg`).
+pub async fn cache_place_folder_cover(folder: String, cover_url: String) -> Result<()> {
+    run(async move {
+        let state = state()?;
+        let http = reqwest::Client::builder()
+            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
+            .build()?;
+        let meta = TrackMeta {
+            cover_url: Some(cover_url),
+            ..Default::default()
+        };
+        let jpeg = fetch_cover(&http, &meta)
+            .await
+            .ok_or_else(|| anyhow!("не удалось скачать обложку"))?;
+        state.cache.set_folder_cover(&folder, &jpeg)?;
+        Ok(())
+    })
+    .await
+}
+
 /// Положить скачанный трек ещё и в папку плейлиста:
 /// `<папка загрузок>/<название плейлиста>/`.
 pub fn cache_place_in_folder(track_id: String, folder: String) -> Result<()> {

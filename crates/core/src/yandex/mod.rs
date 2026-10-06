@@ -9,7 +9,10 @@ pub mod wave;
 use async_trait::async_trait;
 use tokio::sync::OnceCell;
 
-use crate::model::{Account, Playlist, Quality, Source, StreamInfo, Track};
+use crate::model::{
+    Account, AlbumSummary, ArtistPage, Playlist, Quality, SearchResults, Source, StreamInfo,
+    Track,
+};
 use crate::provider::Provider;
 use crate::Result;
 
@@ -42,6 +45,36 @@ impl YandexProvider {
 
     async fn uid(&self) -> Result<String> {
         Ok(self.account().await?.uid.clone())
+    }
+
+    pub async fn liked_albums(&self) -> Result<Vec<AlbumSummary>> {
+        let uid = self.uid().await?;
+        self.api.liked_albums(&uid).await
+    }
+
+    pub async fn album_tracks(&self, album_id: &str) -> Result<Vec<Track>> {
+        Ok(self.api.album_with_tracks(album_id).await?.1)
+    }
+
+    pub async fn search_all(&self, text: &str) -> Result<SearchResults> {
+        self.api.search_all(text).await
+    }
+
+    pub async fn artist_page(&self, artist_id: &str) -> Result<ArtistPage> {
+        self.api.artist_page(artist_id).await
+    }
+
+    pub async fn artist_tracks(&self, artist_id: &str) -> Result<Vec<Track>> {
+        self.api.artist_tracks(artist_id).await
+    }
+
+    /// Треки плейлиста; `owner_uid` — для чужих плейлистов (из поиска).
+    pub async fn playlist_tracks_of(&self, playlist_id: &str, owner_uid: Option<&str>) -> Result<Vec<Track>> {
+        let uid = match owner_uid {
+            Some(uid) => uid.to_owned(),
+            None => self.uid().await?,
+        };
+        self.api.playlist_tracks(&uid, playlist_id).await
     }
 }
 

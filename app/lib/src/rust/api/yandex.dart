@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `account_dto`, `playlist_dto`, `provider`, `reset_provider`, `run`, `secrets`, `stream_dto`, `track_dto`, `track_dtos`
+// These functions are ignored because they are not marked as `pub`: `account_dto`, `album_dto`, `artist_dto`, `playlist_dto`, `provider`, `reset_provider`, `run`, `secrets`, `stream_dto`, `track_dto`, `track_dtos`
 
 /// Вызывается первым при запуске. `data_dir` — приватная папка приложения:
 /// на Android секреты лежат в ней, на десктопе — в системном хранилище.
@@ -34,8 +34,32 @@ Future<List<TrackDto>> likedTracks() =>
 Future<List<PlaylistDto>> playlists() =>
     RustLib.instance.api.crateApiYandexPlaylists();
 
-Future<List<TrackDto>> playlistTracks({required String id}) =>
-    RustLib.instance.api.crateApiYandexPlaylistTracks(id: id);
+/// Треки плейлиста; `owner_uid` — для чужих плейлистов (из поиска).
+Future<List<TrackDto>> playlistTracks({required String id, String? ownerUid}) =>
+    RustLib.instance.api.crateApiYandexPlaylistTracks(
+      id: id,
+      ownerUid: ownerUid,
+    );
+
+/// Общий поиск по разделам.
+Future<SearchDto> searchAll({required String query}) =>
+    RustLib.instance.api.crateApiYandexSearchAll(query: query);
+
+/// Страница исполнителя.
+Future<ArtistPageDto> artistPage({required String id}) =>
+    RustLib.instance.api.crateApiYandexArtistPage(id: id);
+
+/// Все треки исполнителя.
+Future<List<TrackDto>> artistTracks({required String id}) =>
+    RustLib.instance.api.crateApiYandexArtistTracks(id: id);
+
+/// Лайкнутые альбомы.
+Future<List<AlbumDto>> likedAlbums() =>
+    RustLib.instance.api.crateApiYandexLikedAlbums();
+
+/// Треки альбома (все диски подряд).
+Future<List<TrackDto>> albumTracks({required String id}) =>
+    RustLib.instance.api.crateApiYandexAlbumTracks(id: id);
 
 Future<List<TrackDto>> search({required String query}) =>
     RustLib.instance.api.crateApiYandexSearch(query: query);
@@ -72,6 +96,104 @@ class AccountDto {
           hasPlus == other.hasPlus;
 }
 
+class AlbumDto {
+  final String id;
+  final String title;
+  final String artists;
+  final int? year;
+  final String? coverUrl;
+  final int? trackCount;
+
+  /// Имя папки для скачанного альбома: «Исполнитель — Альбом (год)».
+  final String folderName;
+
+  const AlbumDto({
+    required this.id,
+    required this.title,
+    required this.artists,
+    this.year,
+    this.coverUrl,
+    this.trackCount,
+    required this.folderName,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      artists.hashCode ^
+      year.hashCode ^
+      coverUrl.hashCode ^
+      trackCount.hashCode ^
+      folderName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AlbumDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          artists == other.artists &&
+          year == other.year &&
+          coverUrl == other.coverUrl &&
+          trackCount == other.trackCount &&
+          folderName == other.folderName;
+}
+
+class ArtistDto {
+  final String id;
+  final String name;
+  final String? coverUrl;
+
+  const ArtistDto({required this.id, required this.name, this.coverUrl});
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode ^ coverUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArtistDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          coverUrl == other.coverUrl;
+}
+
+class ArtistPageDto {
+  final ArtistDto artist;
+  final List<TrackDto> popularTracks;
+  final List<AlbumDto> albums;
+
+  /// Сборники и альбомы с участием.
+  final List<AlbumDto> alsoAlbums;
+
+  const ArtistPageDto({
+    required this.artist,
+    required this.popularTracks,
+    required this.albums,
+    required this.alsoAlbums,
+  });
+
+  @override
+  int get hashCode =>
+      artist.hashCode ^
+      popularTracks.hashCode ^
+      albums.hashCode ^
+      alsoAlbums.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArtistPageDto &&
+          runtimeType == other.runtimeType &&
+          artist == other.artist &&
+          popularTracks == other.popularTracks &&
+          albums == other.albums &&
+          alsoAlbums == other.alsoAlbums;
+}
+
 class DeviceCodeDto {
   final String userCode;
   final String verificationUrl;
@@ -103,11 +225,26 @@ class PlaylistDto {
   final String id;
   final String title;
   final int? trackCount;
+  final String? coverUrl;
 
-  const PlaylistDto({required this.id, required this.title, this.trackCount});
+  /// Владелец — для чужих плейлистов из поиска; для своих можно не указывать.
+  final String? ownerUid;
+
+  const PlaylistDto({
+    required this.id,
+    required this.title,
+    this.trackCount,
+    this.coverUrl,
+    this.ownerUid,
+  });
 
   @override
-  int get hashCode => id.hashCode ^ title.hashCode ^ trackCount.hashCode;
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      trackCount.hashCode ^
+      coverUrl.hashCode ^
+      ownerUid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -116,7 +253,45 @@ class PlaylistDto {
           runtimeType == other.runtimeType &&
           id == other.id &&
           title == other.title &&
-          trackCount == other.trackCount;
+          trackCount == other.trackCount &&
+          coverUrl == other.coverUrl &&
+          ownerUid == other.ownerUid;
+}
+
+class SearchDto {
+  /// Тип лучшего совпадения: `artist`, `album`, `track`, `playlist`.
+  final String? best;
+  final List<ArtistDto> artists;
+  final List<AlbumDto> albums;
+  final List<PlaylistDto> playlists;
+  final List<TrackDto> tracks;
+
+  const SearchDto({
+    this.best,
+    required this.artists,
+    required this.albums,
+    required this.playlists,
+    required this.tracks,
+  });
+
+  @override
+  int get hashCode =>
+      best.hashCode ^
+      artists.hashCode ^
+      albums.hashCode ^
+      playlists.hashCode ^
+      tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchDto &&
+          runtimeType == other.runtimeType &&
+          best == other.best &&
+          artists == other.artists &&
+          albums == other.albums &&
+          playlists == other.playlists &&
+          tracks == other.tracks;
 }
 
 class StreamDto {

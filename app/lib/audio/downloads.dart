@@ -173,10 +173,14 @@ class PlaylistDownloadButton extends StatelessWidget {
     super.key,
     required this.name,
     required this.load,
+    this.coverUrl,
   });
 
   final String name;
   final Future<List<TrackDto>> Function() load;
+
+  /// Обложка — сохраняется в папку как `folder.jpg`.
+  final String? coverUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +211,14 @@ class PlaylistDownloadButton extends StatelessWidget {
         try {
           final tracks = await load();
           final (ok, failed) = await downloads.downloadPlaylist(name, tracks);
+          final cover = coverUrl;
+          if (ok > 0 && cover != null) {
+            // Обложка папки не обязательна: ошибку не показываем.
+            await cachePlaceFolderCover(
+              folder: name,
+              coverUrl: cover,
+            ).catchError((Object e) => debugPrint('folder.jpg: $e'));
+          }
           messenger.showSnackBar(
             SnackBar(
               content: Text(

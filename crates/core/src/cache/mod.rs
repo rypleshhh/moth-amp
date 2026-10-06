@@ -102,12 +102,24 @@ pub struct Cache {
     index: Mutex<Index>,
 }
 
-/// Удалить папку файла, если она опустела и это не корневая папка треков.
+/// Обложка папки плейлиста/альбома: её показывают Проводник и многие плееры.
+const FOLDER_COVER: &str = "folder.jpg";
+
+/// Удалить папку файла, если в ней не осталось ничего, кроме обложки,
+/// и это не корневая папка треков.
 fn remove_empty_parent(root: &Path, file: &Path) {
-    if let Some(dir) = file.parent() {
-        if dir != root && dir.starts_with(root) {
-            let _ = fs::remove_dir(dir);
-        }
+    let Some(dir) = file.parent() else { return };
+    if dir == root || !dir.starts_with(root) {
+        return;
+    }
+    let only_cover = fs::read_dir(dir).is_ok_and(|items| {
+        items
+            .flatten()
+            .all(|i| i.file_name().to_string_lossy() == FOLDER_COVER)
+    });
+    if only_cover {
+        let _ = fs::remove_file(dir.join(FOLDER_COVER));
+        let _ = fs::remove_dir(dir);
     }
 }
 
@@ -296,8 +308,14 @@ impl Cache {
             }
             moved.push(file);
         }
-        // Пустые папки плейлистов в старом месте больше не нужны.
+        // Обложки папок плейлистов переезжают следом; пустые папки — убрать.
         for file in &moved {
+            if let Some(sub) = Path::new(file).parent().filter(|p| !p.as_os_str().is_empty()) {
+                let cover = current.join(sub).join(FOLDER_COVER);
+                if cover.is_file() {
+                    let _ = move_file(&cover, &target.join(sub).join(FOLDER_COVER));
+                }
+            }
             remove_empty_parent(&current, &current.join(file));
         }
         *self.folder.write().unwrap() = target;
@@ -544,6 +562,17 @@ impl Cache {
             let _ = fs::remove_file(&path);
             remove_empty_parent(&root, &path);
         }
+    }
+
+    /// Обложка папки плейлиста или альбома (`folder.jpg`).
+    pub fn set_folder_cover(&self, folder: &str, jpeg: &[u8]) -> Result<()> {
+        let sub = sanitize_name(folder);
+        if sub.is_empty() {
+            return Err(crate::Error::Storage("пустое имя папки".into()));
+        }
+        let dir = self.tracks_dir().join(sub);
+        fs::create_dir_all(&dir)?;
+        write_atomic(&dir.join(FOLDER_COVER), jpeg)
     }
 
     /// Положить трек ещё и в папку плейлиста: `<папка треков>/<плейлист>/`.
@@ -890,6 +919,25 @@ mod tests {
         assert!(!other.0.join("Утро").exists());
         assert!(!other.0.join("Дорога ночь").exists());
         assert!(!other.0.join("1.mp3").exists());
+    }
+
+    #[test]
+    fn folder_cover_follows_folder() {
+        let dir = TempDir::new("cover");
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        add(&cache, "1", 4);
+        cache.place_in_folder("1", "Альбом").unwrap();
+        cache.set_folder_cover("Альбом", b"jpg").unwrap();
+        assert!(dir.0.join("tracks").join("Альбом").join("folder.jpg").is_file());
+
+        let other = TempDir::new("cover-target");
+        cache.set_folder(Some(&other.0)).unwrap();
+        assert!(other.0.join("Альбом").join("folder.jpg").is_file());
+        assert!(!dir.0.join("tracks").join("Альбом").exists());
+
+        // Очистка: в папке остаётся только обложка — папка убирается целиком.
+        cache.clear().unwrap();
+        assert!(!other.0.join("Альбом").exists());
     }
 
     #[test]

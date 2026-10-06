@@ -76,7 +76,9 @@ class _RootScreenState extends State<RootScreen> {
   );
   late Future<bool> _loggedIn = isLoggedIn();
 
-  void _refresh() => setState(() => _loggedIn = isLoggedIn());
+  void _refresh() => setState(() {
+    _loggedIn = isLoggedIn();
+  });
 
   DownloadController? _downloads;
   String? _lastTrackId;

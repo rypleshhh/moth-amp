@@ -64,6 +64,15 @@ Future<int> cacheBackfillMeta() =>
 Future<List<TrackDto>> cachedTracks() =>
     RustLib.instance.api.crateApiCacheCachedTracks();
 
+/// Сохранить обложку папки плейлиста или альбома (`folder.jpg`).
+Future<void> cachePlaceFolderCover({
+  required String folder,
+  required String coverUrl,
+}) => RustLib.instance.api.crateApiCacheCachePlaceFolderCover(
+  folder: folder,
+  coverUrl: coverUrl,
+);
+
 /// Положить скачанный трек ещё и в папку плейлиста:
 /// `<папка загрузок>/<название плейлиста>/`.
 Future<void> cachePlaceInFolder({

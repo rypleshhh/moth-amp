@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Обложки Яндекса отдаются в любом из стандартных размеров по суффиксу URL.
 /// Для списков берём 100×100 вместо 400×400: в разы меньше трафика.
 String thumbnailUrl(String url) =>
-    url.replaceFirst(RegExp(r'/\d+x\d+$'), '/100x100');
+    url.replaceFirst(RegExp(r'/\d+x\d+(?=\?|$)'), '/100x100');
 
 /// Маленькая обложка трека для списков.
 class TrackCover extends StatelessWidget {
