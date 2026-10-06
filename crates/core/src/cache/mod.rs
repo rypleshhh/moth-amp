@@ -39,6 +39,17 @@ pub struct Entry {
     /// Скачан вручную (иконкой загрузки), а не просто прослушан.
     #[serde(default)]
     pub pinned: bool,
+    /// Дополнительные копии в папках плейлистов (`Плейлист/имя.mp3`):
+    /// жёсткие ссылки на тот же файл, а где их нельзя — копии.
+    #[serde(default)]
+    pub links: Vec<String>,
+}
+
+impl Entry {
+    /// Основной файл и все копии (пути относительно папки треков).
+    fn all_files(&self) -> impl Iterator<Item = &String> {
+        std::iter::once(&self.file).chain(self.links.iter())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -91,6 +102,15 @@ pub struct Cache {
     index: Mutex<Index>,
 }
 
+/// Удалить папку файла, если она опустела и это не корневая папка треков.
+fn remove_empty_parent(root: &Path, file: &Path) {
+    if let Some(dir) = file.parent() {
+        if dir != root && dir.starts_with(root) {
+            let _ = fs::remove_dir(dir);
+        }
+    }
+}
+
 /// Переместить файл; между дисками — копированием.
 fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
     if fs::rename(from, to).is_ok() {
@@ -119,7 +139,7 @@ fn extension(codec: &str) -> &'static str {
 const READABLE_NAME_CHARS: usize = 120;
 
 /// Убрать из имени то, что нельзя в файлах Windows/Android и ключах S3.
-fn sanitize_name(s: &str) -> String {
+pub fn sanitize_name(s: &str) -> String {
     let replaced: String = s
         .chars()
         .map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c })
@@ -184,6 +204,9 @@ impl Cache {
             index
                 .entries
                 .retain(|_, e| tracks.join(&e.file).is_file());
+            for entry in index.entries.values_mut() {
+                entry.links.retain(|l| tracks.join(l).is_file());
+            }
             for item in fs::read_dir(&tracks)?.flatten() {
                 let path = item.path();
                 if path.extension().is_some_and(|e| e == "part") {
@@ -250,19 +273,32 @@ impl Cache {
 
         let mut index = self.index.lock().unwrap();
         let mut moved: Vec<String> = Vec::new();
-        for entry in index.entries.values() {
-            let from = current.join(&entry.file);
-            let to = target.join(&entry.file);
+        let files: Vec<String> = index
+            .entries
+            .values()
+            .flat_map(|e| e.all_files().cloned())
+            .collect();
+        for file in files {
+            let from = current.join(&file);
+            let to = target.join(&file);
             if !from.is_file() || to.exists() {
                 continue;
             }
-            if let Err(e) = move_file(&from, &to) {
+            let result = to
+                .parent()
+                .map_or(Ok(()), fs::create_dir_all)
+                .and_then(|()| move_file(&from, &to));
+            if let Err(e) = result {
                 for file in &moved {
                     let _ = move_file(&target.join(file), &current.join(file));
                 }
                 return Err(e.into());
             }
-            moved.push(entry.file.clone());
+            moved.push(file);
+        }
+        // Пустые папки плейлистов в старом месте больше не нужны.
+        for file in &moved {
+            remove_empty_parent(&current, &current.join(file));
         }
         *self.folder.write().unwrap() = target;
         index.tracks_folder = folder.map(|p| p.to_string_lossy().into_owned());
@@ -365,6 +401,7 @@ impl Cache {
                 last_access: now_unix(),
                 meta,
                 pinned,
+                links: Vec::new(),
             },
         );
         self.evict(Some(track_id));
@@ -391,7 +428,7 @@ impl Cache {
                 break;
             }
             if let Some(e) = index.entries.remove(&id) {
-                let _ = fs::remove_file(self.tracks_dir().join(e.file));
+                self.remove_files(&e);
                 used = used.saturating_sub(size);
             }
         }
@@ -485,24 +522,68 @@ impl Cache {
 
     /// Удалить все треки (настройки и отметка о подписке остаются).
     pub fn clear(&self) -> Result<()> {
-        let files: Vec<String> = self
+        let entries: Vec<Entry> = self
             .index
             .lock()
             .unwrap()
             .entries
             .drain()
-            .map(|(_, e)| e.file)
+            .map(|(_, e)| e)
             .collect();
-        for file in files {
-            let _ = fs::remove_file(self.tracks_dir().join(file));
+        for entry in &entries {
+            self.remove_files(entry);
         }
+        self.save()
+    }
+
+    /// Удалить файл трека и его копии в папках плейлистов (и опустевшие папки).
+    fn remove_files(&self, entry: &Entry) {
+        let root = self.tracks_dir();
+        for file in entry.all_files() {
+            let path = root.join(file);
+            let _ = fs::remove_file(&path);
+            remove_empty_parent(&root, &path);
+        }
+    }
+
+    /// Положить трек ещё и в папку плейлиста: `<папка треков>/<плейлист>/`.
+    /// Жёсткая ссылка не занимает лишнего места; на другом диске — копия.
+    pub fn place_in_folder(&self, track_id: &str, folder: &str) -> Result<()> {
+        let sub = sanitize_name(folder);
+        if sub.is_empty() {
+            return Err(crate::Error::Storage("пустое имя папки".into()));
+        }
+        let root = self.tracks_dir();
+        let mut index = self.index.lock().unwrap();
+        let entry = index
+            .entries
+            .get_mut(track_id)
+            .ok_or_else(|| crate::Error::Storage("трека нет в кэше".into()))?;
+        let name = Path::new(&entry.file)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| entry.file.clone());
+        let rel = format!("{sub}/{name}");
+        if entry.file == rel || entry.links.contains(&rel) {
+            return Ok(());
+        }
+        let from = root.join(&entry.file);
+        let to = root.join(&rel);
+        if let Some(dir) = to.parent() {
+            fs::create_dir_all(dir)?;
+        }
+        if !to.exists() {
+            fs::hard_link(&from, &to).or_else(|_| fs::copy(&from, &to).map(|_| ()))?;
+        }
+        entry.links.push(rel);
+        drop(index);
         self.save()
     }
 
     /// Выход из аккаунта Яндекса: удалить треки Яндекса и отметку о подписке.
     /// Собственные треки пользователя остаются.
     pub fn wipe_account(&self) -> Result<()> {
-        let files: Vec<String> = {
+        let files: Vec<Entry> = {
             let mut index = self.index.lock().unwrap();
             index.plus = None;
             let yandex: Vec<String> = index
@@ -514,11 +595,10 @@ impl Cache {
             yandex
                 .iter()
                 .filter_map(|id| index.entries.remove(id))
-                .map(|e| e.file)
-                .collect()
+                .collect::<Vec<Entry>>()
         };
-        for file in files {
-            let _ = fs::remove_file(self.tracks_dir().join(file));
+        for entry in &files {
+            self.remove_files(entry);
         }
         self.save()
     }
@@ -778,6 +858,51 @@ mod tests {
         assert!(cache.contains("1"), "запись не должна пропасть");
         fs::remove_file(&other.0).unwrap();
         fs::create_dir_all(&other.0).unwrap();
+    }
+
+    #[test]
+    fn playlist_folders() {
+        let dir = TempDir::new("pl");
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        add(&cache, "1", 4);
+        let tracks = dir.0.join("tracks");
+
+        cache.place_in_folder("1", "Дорога: ночь?").unwrap();
+        cache.place_in_folder("1", "Дорога: ночь?").unwrap(); // повтор — без дублей
+        cache.place_in_folder("1", "Утро").unwrap();
+        assert!(tracks.join("Дорога ночь").join("1.mp3").is_file());
+        assert!(tracks.join("Утро").join("1.mp3").is_file());
+        assert_eq!(cache.entry("1").unwrap().1.links.len(), 2);
+        assert!(cache.place_in_folder("2", "Утро").is_err(), "трека нет в кэше");
+        assert!(cache.place_in_folder("1", "  ").is_err());
+
+        // Объём считается один раз.
+        assert_eq!(cache.stats().used_bytes, 4);
+
+        // Смена папки переносит и папки плейлистов.
+        let other = TempDir::new("pl-target");
+        cache.set_folder(Some(&other.0)).unwrap();
+        assert!(other.0.join("Утро").join("1.mp3").is_file());
+        assert!(!tracks.join("Утро").exists(), "пустая папка в старом месте убрана");
+
+        // Очистка убирает все копии и папки плейлистов.
+        cache.clear().unwrap();
+        assert!(!other.0.join("Утро").exists());
+        assert!(!other.0.join("Дорога ночь").exists());
+        assert!(!other.0.join("1.mp3").exists());
+    }
+
+    #[test]
+    fn manually_deleted_copies_are_forgotten() {
+        let dir = TempDir::new("pl-gone");
+        {
+            let cache = Cache::open(&dir.0, 1_000).unwrap();
+            add(&cache, "1", 4);
+            cache.place_in_folder("1", "Утро").unwrap();
+        }
+        fs::remove_file(dir.0.join("tracks").join("Утро").join("1.mp3")).unwrap();
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        assert!(cache.entry("1").unwrap().1.links.is_empty());
     }
 
     #[test]

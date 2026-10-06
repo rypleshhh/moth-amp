@@ -382,3 +382,10 @@ fn track_from_meta(id: String, meta: Option<TrackMeta>) -> TrackDto {
         id,
     }
 }
+
+/// Положить скачанный трек ещё и в папку плейлиста:
+/// `<папка загрузок>/<название плейлиста>/`.
+pub fn cache_place_in_folder(track_id: String, folder: String) -> Result<()> {
+    state()?.cache.place_in_folder(&track_id, &folder)?;
+    Ok(())
+}

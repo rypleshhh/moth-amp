@@ -165,7 +165,16 @@ class _PlaylistsTabState extends State<_PlaylistsTab>
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => Scaffold(
-                    appBar: AppBar(title: Text(p.title)),
+                    appBar: AppBar(
+                      title: Text(p.title),
+                      actions: [
+                        PlaylistDownloadButton(
+                          name: p.title,
+                          load: () => playlistTracks(id: p.id),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
                     body: TrackList(
                       load: () => playlistTracks(id: p.id),
                       player: widget.player,

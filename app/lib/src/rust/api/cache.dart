@@ -64,6 +64,16 @@ Future<int> cacheBackfillMeta() =>
 Future<List<TrackDto>> cachedTracks() =>
     RustLib.instance.api.crateApiCacheCachedTracks();
 
+/// Положить скачанный трек ещё и в папку плейлиста:
+/// `<папка загрузок>/<название плейлиста>/`.
+Future<void> cachePlaceInFolder({
+  required String trackId,
+  required String folder,
+}) => RustLib.instance.api.crateApiCacheCachePlaceInFolder(
+  trackId: trackId,
+  folder: folder,
+);
+
 class CacheStatsDto {
   final double usedMb;
   final int limitMb;

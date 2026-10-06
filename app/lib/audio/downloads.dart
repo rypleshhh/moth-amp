@@ -12,6 +12,9 @@ class DownloadController extends ChangeNotifier {
   /// Растёт при каждом изменении состава кэша (для перезагрузки «Скачанного»).
   int version = 0;
 
+  /// Идущие загрузки плейлистов: название → (готово, всего).
+  final Map<String, (int, int)> playlistProgress = {};
+
   bool isCached(String id) => _cached.contains(id);
   bool isDownloading(String id) => _downloading.contains(id);
 
@@ -48,6 +51,41 @@ class DownloadController extends ChangeNotifier {
     } catch (e) {
       debugPrint('cacheMirrorToS3: $e');
     }
+  }
+
+  /// Скачать плейлист в `<папка загрузок>/<название>/`: треки по одному,
+  /// недоступные пропускаются, сбой одного не останавливает остальные.
+  /// Возвращает (скачано, не удалось).
+  Future<(int, int)> downloadPlaylist(
+    String name,
+    List<TrackDto> tracks,
+  ) async {
+    final list = tracks.where((t) => t.available).toList();
+    var ok = 0;
+    var failed = 0;
+    playlistProgress[name] = (0, list.length);
+    notifyListeners();
+    for (var i = 0; i < list.length; i++) {
+      final t = list[i];
+      final error = await download(t);
+      if (error == null && isCached(t.id)) {
+        try {
+          await cachePlaceInFolder(trackId: t.id, folder: name);
+          ok++;
+        } catch (e) {
+          debugPrint('cachePlaceInFolder: $e');
+          failed++;
+        }
+      } else {
+        failed++;
+      }
+      playlistProgress[name] = (i + 1, list.length);
+      notifyListeners();
+    }
+    playlistProgress.remove(name);
+    version++;
+    notifyListeners();
+    return (ok, failed);
   }
 
   /// Скачать трек. Возвращает текст ошибки или `null`.
@@ -125,6 +163,62 @@ class DownloadButton extends StatelessWidget {
               }
             }
           : null,
+    );
+  }
+}
+
+/// Кнопка «скачать плейлист» с прогрессом «12/40».
+class PlaylistDownloadButton extends StatelessWidget {
+  const PlaylistDownloadButton({
+    super.key,
+    required this.name,
+    required this.load,
+  });
+
+  final String name;
+  final Future<List<TrackDto>> Function() load;
+
+  @override
+  Widget build(BuildContext context) {
+    final downloads = DownloadsScope.of(context);
+    final progress = downloads.playlistProgress[name];
+    if (progress != null) {
+      final (done, total) = progress;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text('$done/$total'),
+          ],
+        ),
+      );
+    }
+    return IconButton(
+      tooltip: 'Скачать плейлист в папку «$name»',
+      icon: const Icon(Icons.download_for_offline_outlined),
+      onPressed: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        try {
+          final tracks = await load();
+          final (ok, failed) = await downloads.downloadPlaylist(name, tracks);
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                'Плейлист «$name»: скачано $ok'
+                '${failed > 0 ? ', не удалось $failed' : ''}',
+              ),
+            ),
+          );
+        } catch (e) {
+          messenger.showSnackBar(SnackBar(content: Text(errorText(e))));
+        }
+      },
     );
   }
 }
