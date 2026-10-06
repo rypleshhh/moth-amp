@@ -220,19 +220,39 @@ impl S3Library {
     }
 
     /// Проверка доступа: ключи, бакет, права на чтение. Возвращает число треков.
+    /// Если бакета ещё нет (свой сервер, например на NAS), он создаётся.
     pub async fn check(&self) -> Result<usize> {
-        let mut list: ListObjectsV2<'_> = self.bucket.list_objects_v2(Some(&self.creds));
-        list.with_prefix(self.prefix.as_str());
-        list.with_max_keys(1);
-        let resp = self.http.get(list.sign(URL_TTL)).send().await?;
-        let status = resp.status();
-        let body = resp.text().await?;
+        let (mut status, mut body) = self.list_probe().await?;
+        if status == reqwest::StatusCode::NOT_FOUND && body.contains("NoSuchBucket") {
+            self.create_bucket().await?;
+            (status, body) = self.list_probe().await?;
+        }
         if !status.is_success() {
             return Err(s3_error("доступ к бакету", status, &body));
         }
         ListObjectsV2::parse_response(&body)
             .map_err(|e| Error::Unexpected(format!("S3: непонятный ответ на список: {e}")))?;
         Ok(self.read_index().await?.tracks.len())
+    }
+
+    async fn list_probe(&self) -> Result<(reqwest::StatusCode, String)> {
+        let mut list: ListObjectsV2<'_> = self.bucket.list_objects_v2(Some(&self.creds));
+        list.with_prefix(self.prefix.as_str());
+        list.with_max_keys(1);
+        let resp = self.http.get(list.sign(URL_TTL)).send().await?;
+        let status = resp.status();
+        Ok((status, resp.text().await?))
+    }
+
+    async fn create_bucket(&self) -> Result<()> {
+        let url = self.bucket.create_bucket(&self.creds).sign(URL_TTL);
+        let resp = self.http.put(url).send().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(s3_error("создание бакета", status, &body));
+        }
+        Ok(())
     }
 
     /// Все треки библиотеки, сначала недавно добавленные.
@@ -274,8 +294,17 @@ impl S3Library {
         let bytes = tokio::fs::read(path).await?;
         let id = format!("{:x}", md5::compute(&bytes));
         let size = bytes.len() as u64;
-
-        let file = self.key(&format!("tracks/{id}.{}", info.codec));
+        let fallback_title = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| id.clone());
+        let named = TrackMeta {
+            title: info.title.clone().filter(|t| !t.trim().is_empty()).unwrap_or(fallback_title),
+            artists: info.artists.clone(),
+            ..Default::default()
+        };
+        let name = crate::cache::readable_file_name(&id, Some(&named), info.codec);
+        let file = self.key(&format!("tracks/{name}"));
         let content_type = if info.codec == "flac" { "audio/flac" } else { "audio/mpeg" };
         self.put_bytes(&file, bytes, content_type).await?;
 
@@ -384,7 +413,8 @@ impl S3Library {
         }
         let source = meta.as_ref().map_or("yandex", |m| m.source.as_str()).to_owned();
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("mp3").to_owned();
-        let file = self.key(&format!("cache/{source}/{id}.{ext}"));
+        let name = crate::cache::readable_file_name(id, meta.as_ref(), &ext);
+        let file = self.key(&format!("cache/{source}/{name}"));
         let bytes = tokio::fs::read(path).await?;
         let size = bytes.len() as u64;
         let content_type = if ext == "flac" { "audio/flac" } else { "audio/mpeg" };
@@ -527,6 +557,23 @@ mod tests {
     fn s3_error_code() {
         let e = s3_error("x", reqwest::StatusCode::FORBIDDEN, "<Error><Code>AccessDenied</Code></Error>");
         assert!(e.to_string().contains("AccessDenied"));
+    }
+
+    /// Подключение к ещё не созданному бакету создаёт его. Запуск — как у
+    /// `s3_roundtrip`.
+    #[tokio::test]
+    #[ignore]
+    async fn s3_creates_missing_bucket() {
+        let endpoint = std::env::var("MOTH_S3_TEST").expect("MOTH_S3_TEST");
+        let mut cfg = config(&endpoint);
+        cfg.access_key = "moth".into();
+        cfg.secret_key = "mothtest123".into();
+        cfg.region = "us-east-1".into();
+        cfg.bucket = format!("auto-{}", now_unix());
+        let lib = S3Library::new(&cfg, reqwest::Client::new()).unwrap();
+        assert_eq!(lib.check().await.unwrap(), 0);
+        // Повторное подключение — бакет уже есть, ошибок нет.
+        assert_eq!(lib.check().await.unwrap(), 0);
     }
 
     /// Сквозная проверка с настоящим S3-совместимым сервером. Запуск:

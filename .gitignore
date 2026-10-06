@@ -3,3 +3,7 @@
 PROJECT.md
 /design
 /dist
+# Ключи и данные S3 при запуске из deploy/nas прямо в репозитории
+/deploy/nas/.env
+/deploy/nas/data
+/deploy/nas/logs

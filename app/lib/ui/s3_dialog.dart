@@ -128,7 +128,9 @@ class _S3DialogState extends State<_S3Dialog> {
               Text(
                 'Любое S3-совместимое хранилище: Yandex Object Storage, Selectel, '
                 'VK Cloud, Cloudflare R2 или свой сервер. Файлы лежат в бакете под '
-                'префиксом moth-amp/. Ключи хранятся в системном хранилище Windows.',
+                'префиксом moth-amp/; если бакета нет, он создастся сам. Ключи '
+                'хранятся в системном хранилище. Свой NAS — инструкция в '
+                'репозитории: docs/s3-nas.md.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),

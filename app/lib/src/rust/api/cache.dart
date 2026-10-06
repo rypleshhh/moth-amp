@@ -39,6 +39,11 @@ Future<CacheStatsDto> cacheStats() =>
 Future<void> cacheSetLimit({required int limitMb}) =>
     RustLib.instance.api.crateApiCacheCacheSetLimit(limitMb: limitMb);
 
+/// Перенести скачанные треки в другую папку (`None` — папка по умолчанию).
+/// Возвращает число перенесённых файлов.
+Future<int> cacheSetFolder({String? folder}) =>
+    RustLib.instance.api.crateApiCacheCacheSetFolder(folder: folder);
+
 Future<void> cacheSetAuto({required bool enabled}) =>
     RustLib.instance.api.crateApiCacheCacheSetAuto(enabled: enabled);
 
@@ -70,12 +75,16 @@ class CacheStatsDto {
   /// Папка с файлами треков.
   final String folder;
 
+  /// Папку выбрал пользователь (а не папка по умолчанию).
+  final bool customFolder;
+
   const CacheStatsDto({
     required this.usedMb,
     required this.limitMb,
     required this.tracks,
     required this.autoCache,
     required this.folder,
+    required this.customFolder,
   });
 
   @override
@@ -84,7 +93,8 @@ class CacheStatsDto {
       limitMb.hashCode ^
       tracks.hashCode ^
       autoCache.hashCode ^
-      folder.hashCode;
+      folder.hashCode ^
+      customFolder.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -95,7 +105,8 @@ class CacheStatsDto {
           limitMb == other.limitMb &&
           tracks == other.tracks &&
           autoCache == other.autoCache &&
-          folder == other.folder;
+          folder == other.folder &&
+          customFolder == other.customFolder;
 }
 
 class PlaySourceDto {

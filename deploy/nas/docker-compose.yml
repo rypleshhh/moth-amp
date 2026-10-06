@@ -1,0 +1,23 @@
+# S3-хранилище для moth-amp на NAS: RustFS (Apache 2.0), S3-совместимый сервер.
+# Инструкция: docs/s3-nas.md
+#
+#   cp .env.example .env      # и вписать свои ключи
+#   mkdir -p data logs && sudo chown -R 10001:10001 data logs
+#   docker compose up -d
+
+services:
+  rustfs:
+    # Для стабильной работы закрепите проверенную версию, например rustfs/rustfs:1.0.1.
+    image: rustfs/rustfs:latest
+    container_name: moth-s3
+    restart: unless-stopped
+    ports:
+      # S3 API: этот адрес вводится в moth-amp (http://<IP NAS>:9000).
+      - "9000:9000"
+    environment:
+      RUSTFS_ACCESS_KEY: ${MOTH_S3_ACCESS_KEY:?задайте MOTH_S3_ACCESS_KEY в .env}
+      RUSTFS_SECRET_KEY: ${MOTH_S3_SECRET_KEY:?задайте MOTH_S3_SECRET_KEY в .env}
+    volumes:
+      # Вся музыка и настройки лежат здесь — эту папку и нужно бэкапить.
+      - ./data:/data
+      - ./logs:/logs

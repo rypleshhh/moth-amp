@@ -29,6 +29,12 @@ cd app
 flutter_rust_bridge_codegen generate
 ```
 
+## Своё S3-хранилище на NAS
+
+Музыка, кэш и настройки могут храниться в S3-совместимом хранилище. Как поднять его
+на своём NAS (RustFS в Docker): [docs/s3-nas.md](docs/s3-nas.md), готовые файлы —
+в `deploy/nas/`.
+
 ## Сборка
 
 Нужен Rust (stable) с MSVC-тулчейном.

@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../src/rust/api/cache.dart';
@@ -33,6 +37,56 @@ class _CacheDialogState extends State<_CacheDialog> {
       if (mounted) setState(() => _stats = s);
     } catch (e) {
       if (mounted) setState(() => _error = errorText(e));
+    }
+  }
+
+  bool _moving = false;
+
+  /// Выбор папки. На Android системный выбор отдаёт не путь, а разрешение на
+  /// папку, поэтому там два варианта: память приложения или его папка в
+  /// общей памяти (видна в файловом менеджере).
+  Future<String?> _pickFolder() async {
+    if (!Platform.isAndroid) {
+      return getDirectoryPath(confirmButtonText: 'Выбрать');
+    }
+    final external = await getExternalStorageDirectory();
+    if (!mounted) return null;
+    return showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Где хранить треки'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, ''),
+            child: const Text('Память приложения (по умолчанию)'),
+          ),
+          if (external != null)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, '${external.path}/music'),
+              child: Text('Общая память: ${external.path}/music'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeFolder({bool reset = false}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = reset ? '' : await _pickFolder();
+    if (picked == null) return;
+    setState(() => _moving = true);
+    try {
+      final moved = await cacheSetFolder(
+        folder: picked.isEmpty ? null : picked,
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('Папка изменена, перенесено файлов: $moved')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorText(e))));
+    } finally {
+      if (mounted) setState(() => _moving = false);
+      await _reload();
     }
   }
 
@@ -100,18 +154,44 @@ class _CacheDialogState extends State<_CacheDialog> {
                   Text('Папка', style: theme.textTheme.labelLarge),
                   const SizedBox(height: 4),
                   SelectableText(s.folder, style: theme.textTheme.bodySmall),
-                  TextButton.icon(
-                    icon: const Icon(Icons.folder_open_outlined),
-                    label: const Text('Открыть папку'),
-                    onPressed: () => launchUrl(Uri.directory(s.folder)),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      TextButton.icon(
+                        icon: _moving
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.drive_folder_upload_outlined),
+                        label: Text(_moving ? 'Переношу…' : 'Выбрать папку…'),
+                        onPressed: _moving ? null : _changeFolder,
+                      ),
+                      if (s.customFolder)
+                        TextButton(
+                          onPressed: _moving
+                              ? null
+                              : () => _changeFolder(reset: true),
+                          child: const Text('По умолчанию'),
+                        ),
+                      if (!Platform.isAndroid)
+                        TextButton.icon(
+                          icon: const Icon(Icons.folder_open_outlined),
+                          label: const Text('Открыть'),
+                          onPressed: () => launchUrl(Uri.directory(s.folder)),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Треки хранятся как обычные mp3/flac с тегами (название, '
-                    'исполнители, альбом, год, обложка) и в следующий раз '
-                    'играют без сети. При переполнении удаляются давно не '
-                    'игравшие. Кэш работает, пока подписка подтверждена (до 30 '
-                    'дней без сети), и удаляется при выходе из аккаунта.',
+                    'Треки хранятся как обычные mp3/flac с тегами (название, исполнители, '
+                    'альбом, год, обложка) и именами вида «Исполнитель — Название (id)». '
+                    'При смене папки скачанные файлы переезжают в новую. Скачанное '
+                    'играет без сети; при переполнении удаляются давно не игравшие. '
+                    'Треки Яндекса играют, пока подписка подтверждена (до 30 дней без '
+                    'сети), и удаляются при выходе из аккаунта.',
                     style: theme.textTheme.bodySmall,
                   ),
                 ],

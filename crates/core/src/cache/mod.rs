@@ -13,7 +13,7 @@ pub mod tags;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +56,9 @@ struct Index {
     /// Сохранять в кэш все прослушанные треки (иначе только скачанные вручную).
     #[serde(default = "default_true")]
     auto_cache: bool,
+    /// Папка с файлами треков, выбранная пользователем; `None` — по умолчанию.
+    #[serde(default)]
+    tracks_folder: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -69,6 +72,7 @@ impl Default for Index {
             limit_bytes: 0,
             plus: None,
             auto_cache: true,
+            tracks_folder: None,
         }
     }
 }
@@ -82,7 +86,18 @@ pub struct CacheStats {
 
 pub struct Cache {
     dir: PathBuf,
+    /// Папка с файлами треков (отдельная блокировка: читается и под замком индекса).
+    folder: RwLock<PathBuf>,
     index: Mutex<Index>,
+}
+
+/// Переместить файл; между дисками — копированием.
+fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    if fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    fs::copy(from, to)?;
+    fs::remove_file(from)
 }
 
 /// Трек Яндекса (или старая запись без метаданных) — играет только при
@@ -100,6 +115,43 @@ fn extension(codec: &str) -> &'static str {
     }
 }
 
+/// Сколько символов имени отдаётся под «исполнитель — название».
+const READABLE_NAME_CHARS: usize = 120;
+
+/// Убрать из имени то, что нельзя в файлах Windows/Android и ключах S3.
+fn sanitize_name(s: &str) -> String {
+    let replaced: String = s
+        .chars()
+        .map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c })
+        .collect();
+    let collapsed = replaced.split_whitespace().collect::<Vec<_>>().join(" ");
+    let truncated: String = collapsed.chars().take(READABLE_NAME_CHARS).collect();
+    // Windows не любит точки и пробелы в конце имени.
+    truncated.trim_end_matches(['.', ' ']).trim().to_owned()
+}
+
+/// Имя файла трека: `Исполнитель — Название (id).mp3`. id в скобках остаётся,
+/// чтобы имена не совпадали; без метаданных — просто `id.mp3`.
+pub fn readable_file_name(id: &str, meta: Option<&TrackMeta>, ext: &str) -> String {
+    let base = meta
+        .filter(|m| !m.title.trim().is_empty())
+        .map(|m| {
+            let artists = m.artists.join(", ");
+            if artists.trim().is_empty() {
+                m.title.clone()
+            } else {
+                format!("{artists} — {}", m.title)
+            }
+        })
+        .map(|b| sanitize_name(&b))
+        .unwrap_or_default();
+    if base.is_empty() {
+        format!("{id}.{ext}")
+    } else {
+        format!("{base} ({id}).{ext}")
+    }
+}
+
 /// id трека в имени файла: только цифры, буквы, `-` и `_` (защита от `..` и т.п.).
 pub fn is_safe_id(id: &str) -> bool {
     !id.is_empty()
@@ -111,9 +163,7 @@ impl Cache {
     /// Открыть кэш: прочитать индекс, выбросить записи без файлов
     /// и недокачанные остатки прошлых запусков.
     pub fn open(dir: &Path, default_limit_bytes: u64) -> Result<Self> {
-        let tracks = dir.join("tracks");
-        fs::create_dir_all(&tracks)?;
-
+        fs::create_dir_all(dir)?;
         let mut index: Index = match fs::read(dir.join("index.json")) {
             Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index::default(),
@@ -122,27 +172,108 @@ impl Cache {
         if index.limit_bytes == 0 {
             index.limit_bytes = default_limit_bytes;
         }
-        index
-            .entries
-            .retain(|_, e| tracks.join(&e.file).is_file());
 
-        for item in fs::read_dir(&tracks)?.flatten() {
-            let path = item.path();
-            if path.extension().is_some_and(|e| e == "part") {
-                let _ = fs::remove_file(path);
+        let tracks = index
+            .tracks_folder
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| dir.join("tracks"));
+        // Своя папка может быть недоступна (отключённый диск). Тогда индекс
+        // не трогаем: файлы найдутся, когда диск вернётся.
+        if fs::create_dir_all(&tracks).is_ok() && tracks.is_dir() {
+            index
+                .entries
+                .retain(|_, e| tracks.join(&e.file).is_file());
+            for item in fs::read_dir(&tracks)?.flatten() {
+                let path = item.path();
+                if path.extension().is_some_and(|e| e == "part") {
+                    let _ = fs::remove_file(path);
+                }
             }
         }
 
         let cache = Self {
             dir: dir.to_owned(),
+            folder: RwLock::new(tracks),
             index: Mutex::new(index),
         };
+        let ids: Vec<String> = cache.index.lock().unwrap().entries.keys().cloned().collect();
+        for id in ids {
+            cache.rename_readable(&id);
+        }
         cache.save()?;
         Ok(cache)
     }
 
+    /// Переименовать файл трека в читаемое имя по его метаданным. Если файл
+    /// занят (играет) или имя уже занято — оставить как есть.
+    fn rename_readable(&self, track_id: &str) {
+        let mut index = self.index.lock().unwrap();
+        let Some(entry) = index.entries.get_mut(track_id) else {
+            return;
+        };
+        let ext = Path::new(&entry.file)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("mp3")
+            .to_owned();
+        let wanted = readable_file_name(track_id, entry.meta.as_ref(), &ext);
+        if wanted == entry.file {
+            return;
+        }
+        let from = self.tracks_dir().join(&entry.file);
+        let to = self.tracks_dir().join(&wanted);
+        if !to.exists() && fs::rename(&from, &to).is_ok() {
+            entry.file = wanted;
+        }
+    }
+
     fn tracks_dir(&self) -> PathBuf {
-        self.dir.join("tracks")
+        self.folder.read().unwrap().clone()
+    }
+
+    /// Выбрать папку для файлов треков (`None` — по умолчанию). Уже скачанные
+    /// файлы переезжают; при сбое перенос откатывается. Возвращает число
+    /// перенесённых файлов.
+    pub fn set_folder(&self, folder: Option<&Path>) -> Result<usize> {
+        let target = folder
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| self.dir.join("tracks"));
+        fs::create_dir_all(&target)?;
+        let current = self.tracks_dir();
+        if fs::canonicalize(&current).ok() == fs::canonicalize(&target).ok() {
+            self.index.lock().unwrap().tracks_folder =
+                folder.map(|p| p.to_string_lossy().into_owned());
+            self.save()?;
+            return Ok(0);
+        }
+
+        let mut index = self.index.lock().unwrap();
+        let mut moved: Vec<String> = Vec::new();
+        for entry in index.entries.values() {
+            let from = current.join(&entry.file);
+            let to = target.join(&entry.file);
+            if !from.is_file() || to.exists() {
+                continue;
+            }
+            if let Err(e) = move_file(&from, &to) {
+                for file in &moved {
+                    let _ = move_file(&target.join(file), &current.join(file));
+                }
+                return Err(e.into());
+            }
+            moved.push(entry.file.clone());
+        }
+        *self.folder.write().unwrap() = target;
+        index.tracks_folder = folder.map(|p| p.to_string_lossy().into_owned());
+        drop(index);
+        self.save()?;
+        Ok(moved.len())
+    }
+
+    /// Выбрана ли своя папка (а не папка по умолчанию).
+    pub fn custom_folder(&self) -> bool {
+        self.index.lock().unwrap().tracks_folder.is_some()
     }
 
     fn save(&self) -> Result<()> {
@@ -220,7 +351,7 @@ impl Cache {
         meta: Option<TrackMeta>,
         pinned: bool,
     ) -> Result<()> {
-        let file = format!("{track_id}.{}", extension(codec));
+        let file = readable_file_name(track_id, meta.as_ref(), extension(codec));
         let target = self.tracks_dir().join(&file);
         fs::rename(part, &target)?;
         let size = fs::metadata(&target)?.len();
@@ -319,6 +450,7 @@ impl Cache {
                 entry.size = size;
             }
         }
+        self.rename_readable(track_id);
         self.save()
     }
 
@@ -546,6 +678,106 @@ mod tests {
         assert!(list[0].1.pinned);
         assert!(list[0].1.file.ends_with(".flac"));
         assert_eq!(cache.cached_ids(), vec!["7".to_owned()]);
+    }
+
+    #[test]
+    fn readable_names() {
+        let meta = TrackMeta {
+            id: "42".into(),
+            title: "Us And Them (2011 - Remaster)".into(),
+            artists: vec!["Pink Floyd".into()],
+            ..Default::default()
+        };
+        assert_eq!(
+            readable_file_name("42", Some(&meta), "mp3"),
+            "Pink Floyd — Us And Them (2011 - Remaster) (42).mp3"
+        );
+        // Запрещённые символы и хвостовые точки.
+        let bad = TrackMeta {
+            title: "What?/Why: \"yes\"...".into(),
+            artists: vec!["AC/DC".into(), "Гость".into()],
+            ..Default::default()
+        };
+        assert_eq!(
+            readable_file_name("7", Some(&bad), "flac"),
+            "AC DC, Гость — What Why yes (7).flac"
+        );
+        // Без названия или метаданных — просто id.
+        assert_eq!(readable_file_name("7", None, "mp3"), "7.mp3");
+        assert_eq!(readable_file_name("7", Some(&TrackMeta::default()), "mp3"), "7.mp3");
+        // Длинное имя обрезается.
+        let long = TrackMeta {
+            title: "x".repeat(500),
+            ..Default::default()
+        };
+        assert!(readable_file_name("7", Some(&long), "mp3").chars().count() < 140);
+    }
+
+    #[test]
+    fn old_files_are_renamed_on_open() {
+        let dir = TempDir::new("rename");
+        {
+            let cache = Cache::open(&dir.0, 1_000).unwrap();
+            add(&cache, "5", 3);
+            assert!(dir.0.join("tracks").join("5.mp3").exists());
+            let meta = TrackMeta {
+                source: "yandex".into(),
+                id: "5".into(),
+                title: "Песня".into(),
+                artists: vec!["Группа".into()],
+                ..Default::default()
+            };
+            // Как у записей, сохранённых до появления метаданных: метаданные
+            // есть, а файл ещё со старым именем.
+            cache.index.lock().unwrap().entries.get_mut("5").unwrap().meta = Some(meta);
+            cache.save().unwrap();
+        }
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        let (path, _) = cache.entry("5").unwrap();
+        assert!(path.ends_with("Группа — Песня (5).mp3"));
+        assert!(!dir.0.join("tracks").join("5.mp3").exists());
+    }
+
+    #[test]
+    fn custom_folder_moves_files_and_persists() {
+        let dir = TempDir::new("folder");
+        let other = TempDir::new("folder-target");
+        {
+            let cache = Cache::open(&dir.0, 1_000).unwrap();
+            cache.confirm_plus(true).unwrap();
+            add(&cache, "1", 4);
+            assert_eq!(cache.set_folder(Some(&other.0)).unwrap(), 1);
+            assert!(other.0.join("1.mp3").exists());
+            assert!(!dir.0.join("tracks").join("1.mp3").exists());
+            assert!(cache.lookup("1").unwrap().0.starts_with(&other.0));
+            assert!(cache.custom_folder());
+        }
+        // Выбор сохраняется между запусками.
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        assert!(cache.folder().starts_with(&other.0));
+        assert!(cache.contains("1"));
+        // Обратно — в папку по умолчанию.
+        assert_eq!(cache.set_folder(None).unwrap(), 1);
+        assert!(dir.0.join("tracks").join("1.mp3").exists());
+        assert!(!cache.custom_folder());
+    }
+
+    #[test]
+    fn unavailable_folder_keeps_index() {
+        let dir = TempDir::new("gone");
+        let other = TempDir::new("gone-target");
+        {
+            let cache = Cache::open(&dir.0, 1_000).unwrap();
+            add(&cache, "1", 4);
+            cache.set_folder(Some(&other.0)).unwrap();
+        }
+        // «Диск отключили»: на месте папки — файл, создать папку нельзя.
+        fs::remove_dir_all(&other.0).unwrap();
+        fs::write(&other.0, b"not a dir").unwrap();
+        let cache = Cache::open(&dir.0, 1_000).unwrap();
+        assert!(cache.contains("1"), "запись не должна пропасть");
+        fs::remove_file(&other.0).unwrap();
+        fs::create_dir_all(&other.0).unwrap();
     }
 
     #[test]

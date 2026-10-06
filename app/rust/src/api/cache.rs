@@ -82,6 +82,8 @@ pub struct CacheStatsDto {
     pub auto_cache: bool,
     /// Папка с файлами треков.
     pub folder: String,
+    /// Папку выбрал пользователь (а не папка по умолчанию).
+    pub custom_folder: bool,
 }
 
 fn meta_from(t: &TrackDto) -> TrackMeta {
@@ -234,12 +236,27 @@ pub fn cache_stats() -> Result<CacheStatsDto> {
         tracks: u32::try_from(s.tracks).unwrap_or(u32::MAX),
         auto_cache: cache.auto_cache(),
         folder: cache.folder().to_string_lossy().into_owned(),
+        custom_folder: cache.custom_folder(),
     })
 }
 
 pub fn cache_set_limit(limit_mb: u32) -> Result<()> {
     state()?.cache.set_limit(u64::from(limit_mb) * MB)?;
     Ok(())
+}
+
+/// Перенести скачанные треки в другую папку (`None` — папка по умолчанию).
+/// Возвращает число перенесённых файлов.
+pub async fn cache_set_folder(folder: Option<String>) -> Result<u32> {
+    run(async move {
+        let cache = state()?.cache.clone();
+        let moved = tokio::task::spawn_blocking(move || {
+            cache.set_folder(folder.as_deref().map(std::path::Path::new))
+        })
+        .await??;
+        Ok(u32::try_from(moved).unwrap_or(u32::MAX))
+    })
+    .await
 }
 
 pub fn cache_set_auto(enabled: bool) -> Result<()> {
