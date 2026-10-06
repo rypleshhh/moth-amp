@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 
 use anyhow::{anyhow, Result};
-use moth_core::cache::proxy::{fetch_cover, Proxy, ResolvedTrack, Resolver};
+use moth_core::cache::proxy::{fetch_cover, CommitHook, Proxy, ResolvedTrack, Resolver};
 use moth_core::cache::Cache;
 use moth_core::model::{Quality, StreamInfo, TrackMeta};
 use moth_core::provider::Provider;
@@ -28,6 +28,42 @@ static META: LazyLock<Mutex<HashMap<String, TrackMeta>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const MB: u64 = 1024 * 1024;
+
+/// Загрузки в бакет по одной: индекс кэша в S3 правится чтением-записью.
+static MIRROR_LOCK: LazyLock<tokio::sync::Mutex<()>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(()));
+
+/// Скопировать трек из локального кэша в S3 (если S3 подключено).
+/// Свои треки из библиотеки S3 не копируются — они и так там.
+async fn mirror_one(id: &str) -> Result<bool> {
+    let Some(lib) = super::s3::library()? else {
+        return Ok(false);
+    };
+    let Some(state) = STATE.get() else {
+        return Ok(false);
+    };
+    let Some((path, entry)) = state.cache.entry(id) else {
+        return Ok(false);
+    };
+    if entry.meta.as_ref().is_some_and(|m| m.source == "s3") {
+        return Ok(false);
+    }
+    let _guard = MIRROR_LOCK.lock().await;
+    lib.cache_put(id, &path, &entry.codec, entry.bitrate_kbps, entry.meta)
+        .await?;
+    Ok(true)
+}
+
+/// Трек Яндекса из кэша в S3, если он там есть и подписка подтверждена.
+async fn s3_cached_stream(id: &str) -> Option<(StreamInfo, Option<TrackMeta>)> {
+    let state = STATE.get()?;
+    let lib = super::s3::library().ok()??;
+    let obj = lib.cache_get(id).await.ok()??;
+    if obj.needs_plus() && !state.cache.playback_allowed() {
+        return None;
+    }
+    Some((lib.cache_stream_info(&obj), obj.meta))
+}
 
 pub struct PlaySourceDto {
     /// Путь к файлу кэша, адрес локального прокси или прямая ссылка.
@@ -72,7 +108,10 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
         if STATE.get().is_some() {
             return Ok(());
         }
-        let cache = Arc::new(Cache::open(Path::new(&dir), u64::from(default_limit_mb) * MB)?);
+        let cache = Arc::new(Cache::open(
+            Path::new(&dir),
+            u64::from(default_limit_mb) * MB,
+        )?);
         let resolver: Resolver = Arc::new(|id: String| {
             Box::pin(async move {
                 let mut meta = META.lock().unwrap().get(&id).cloned();
@@ -86,11 +125,17 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
                         meta = Some(fresh);
                         info
                     }
-                    None => {
-                        let p = provider()
-                            .map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
-                        p.stream(&id, Quality::High).await?
-                    }
+                    None => match s3_cached_stream(&id).await {
+                        Some((info, s3_meta)) => {
+                            meta = meta.or(s3_meta);
+                            info
+                        }
+                        None => {
+                            let p = provider()
+                                .map_err(|e| moth_core::Error::Unexpected(e.to_string()))?;
+                            p.stream(&id, Quality::High).await?
+                        }
+                    },
                 };
                 Ok(ResolvedTrack { stream, meta })
             })
@@ -99,6 +144,12 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
             .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
             .build()?;
         let proxy = Proxy::start(cache.clone(), resolver, http).await?;
+        let hook: CommitHook = Arc::new(|id: String| {
+            tokio::spawn(async move {
+                let _ = mirror_one(&id).await;
+            });
+        });
+        proxy.set_on_commit(hook);
         let _ = STATE.set(CacheState { cache, proxy });
         Ok(())
     })
@@ -127,7 +178,10 @@ pub async fn play_source(track: TrackDto) -> Result<PlaySourceDto> {
             info
         } else {
             remember_meta(&track);
-            provider()?.stream(&track.id, Quality::High).await?
+            match s3_cached_stream(&track.id).await {
+                Some((info, _)) => info,
+                None => provider()?.stream(&track.id, Quality::High).await?,
+            }
         };
         let url = match state {
             Some(state) if state.cache.auto_cache() => {
@@ -206,10 +260,34 @@ pub(crate) fn confirm_plus(has_plus: bool) {
 }
 
 /// Выход из аккаунта: кэш Яндекса удаляется.
-pub(crate) fn wipe() {
+pub(crate) async fn wipe() {
     if let Some(s) = STATE.get() {
         let _ = s.cache.wipe_account();
     }
+    if let Ok(Some(lib)) = super::s3::library() {
+        let _guard = MIRROR_LOCK.lock().await;
+        let _ = lib.cache_remove_yandex().await;
+    }
+}
+
+/// Скопировать в S3 треки локального кэша, которых там ещё нет.
+/// Возвращает число скопированных. Без подключённого S3 — 0.
+pub async fn cache_mirror_to_s3() -> Result<u32> {
+    run(async {
+        let state = state()?;
+        let Some(lib) = super::s3::library()? else {
+            return Ok(0);
+        };
+        let remote: Vec<String> = lib.cache_list().await?.into_iter().map(|o| o.id).collect();
+        let mut done = 0;
+        for id in state.cache.cached_ids() {
+            if !remote.contains(&id) && mirror_one(&id).await? {
+                done += 1;
+            }
+        }
+        Ok(done)
+    })
+    .await
 }
 
 /// Дописать метаданные и теги трекам, попавшим в кэш без них.
@@ -239,25 +317,51 @@ pub async fn cache_backfill_meta() -> Result<u32> {
 
 /// Треки в кэше с метаданными — список «Скачанное», работает без сети.
 /// Сначала недавно игравшие.
-pub fn cached_tracks() -> Result<Vec<TrackDto>> {
-    Ok(state()?
-        .cache
-        .cached_tracks()
-        .into_iter()
-        .map(|(id, entry)| {
-            let meta = entry.meta.unwrap_or_default();
-            TrackDto {
-                source: if meta.source.is_empty() { "yandex".into() } else { meta.source.clone() },
-                title: if meta.title.is_empty() { id.clone() } else { meta.title },
-                artists: meta.artists.join(", "),
-                artist_names: meta.artists,
-                album: meta.album,
-                year: meta.year,
-                duration_ms: meta.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
-                available: true,
-                cover_url: meta.cover_url,
-                id,
+pub async fn cached_tracks() -> Result<Vec<TrackDto>> {
+    run(async {
+        let state = state()?;
+        let mut list: Vec<TrackDto> = state
+            .cache
+            .cached_tracks()
+            .into_iter()
+            .map(|(id, entry)| track_from_meta(id, entry.meta))
+            .collect();
+        // Треки из кэша в S3, которых нет на этом устройстве.
+        if let Ok(Some(lib)) = super::s3::library() {
+            if let Ok(remote) = lib.cache_list().await {
+                let plus_ok = state.cache.playback_allowed();
+                for obj in remote {
+                    if (plus_ok || !obj.needs_plus()) && !list.iter().any(|t| t.id == obj.id) {
+                        list.push(track_from_meta(obj.id, obj.meta));
+                    }
+                }
             }
-        })
-        .collect())
+        }
+        Ok(list)
+    })
+    .await
+}
+
+fn track_from_meta(id: String, meta: Option<TrackMeta>) -> TrackDto {
+    let meta = meta.unwrap_or_default();
+    TrackDto {
+        source: if meta.source.is_empty() {
+            "yandex".into()
+        } else {
+            meta.source.clone()
+        },
+        title: if meta.title.is_empty() {
+            id.clone()
+        } else {
+            meta.title
+        },
+        artists: meta.artists.join(", "),
+        artist_names: meta.artists,
+        album: meta.album,
+        year: meta.year,
+        duration_ms: meta.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
+        available: true,
+        cover_url: meta.cover_url,
+        id,
+    }
 }

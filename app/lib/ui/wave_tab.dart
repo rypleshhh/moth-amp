@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import '../audio/downloads.dart';
+import 'theme.dart';
 import 'track_cover.dart';
 import 'track_list.dart';
 
@@ -52,7 +53,19 @@ class _WaveTabState extends State<WaveTab> with AutomaticKeepAliveClientMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Моя волна', style: theme.textTheme.headlineSmall),
+                  const Text(
+                    'моя волна',
+                    style: TextStyle(
+                      fontFamily: Moth.mono,
+                      fontSize: 22,
+                      color: Moth.paper,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'бесконечный поток под ваше настроение',
+                    style: Moth.label,
+                  ),
                   const SizedBox(height: 12),
                   SegmentedButton<bool>(
                     segments: const [

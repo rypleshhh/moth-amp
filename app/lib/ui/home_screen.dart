@@ -7,6 +7,7 @@ import '../audio/downloads.dart';
 import '../src/rust/api/cache.dart';
 import 'cache_dialog.dart';
 import 'deck.dart';
+import 'theme.dart';
 import 'my_music_tab.dart';
 import 'errors.dart';
 import 'player_bar.dart';
@@ -55,15 +56,31 @@ class HomeScreen extends StatelessWidget {
       length: 6,
       child: Scaffold(
         appBar: AppBar(
-          title: FutureBuilder<AccountDto>(
-            future: account(),
-            builder: (context, snap) {
-              final acc = snap.data;
-              if (acc == null) return const Text('moth-amp');
-              return Text('${acc.name}${acc.hasPlus ? ' · Плюс' : ''}');
-            },
+          title: Row(
+            children: [
+              Image.asset('assets/logo.png', width: 22, height: 22),
+              const SizedBox(width: 10),
+              const Text(
+                'moth-amp',
+                style: TextStyle(fontFamily: Moth.mono, fontSize: 18),
+              ),
+            ],
           ),
           actions: [
+            FutureBuilder<AccountDto>(
+              future: account(),
+              builder: (context, snap) {
+                final acc = snap.data;
+                if (acc == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    '${acc.name.toLowerCase()}${acc.hasPlus ? ' · плюс' : ''}',
+                    style: Moth.label,
+                  ),
+                );
+              },
+            ),
             Builder(
               builder: (context) => IconButton(
                 tooltip: 'Кэш',
@@ -78,13 +95,15 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Моя волна'),
-              Tab(text: 'Мне нравится'),
-              Tab(text: 'Плейлисты'),
-              Tab(text: 'Поиск'),
-              Tab(text: 'Скачанное'),
-              Tab(text: 'Моя музыка'),
+              Tab(text: 'моя волна'),
+              Tab(text: 'мне нравится'),
+              Tab(text: 'плейлисты'),
+              Tab(text: 'поиск'),
+              Tab(text: 'скачанное'),
+              Tab(text: 'моя музыка'),
             ],
           ),
         ),

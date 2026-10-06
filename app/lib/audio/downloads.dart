@@ -31,7 +31,8 @@ class DownloadController extends ChangeNotifier {
     }
   }
 
-  /// Дописать метаданные старым записям кэша (один раз за запуск, в фоне).
+  /// Дописать метаданные старым записям кэша и скопировать кэш в S3
+  /// (один раз за запуск, в фоне).
   Future<void> backfillMeta() async {
     try {
       if (await cacheBackfillMeta() > 0) {
@@ -40,6 +41,12 @@ class DownloadController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('cacheBackfillMeta: $e');
+    }
+    try {
+      final copied = await cacheMirrorToS3();
+      if (copied > 0) debugPrint('В S3 скопировано треков: $copied');
+    } catch (e) {
+      debugPrint('cacheMirrorToS3: $e');
     }
   }
 

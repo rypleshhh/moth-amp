@@ -13,6 +13,7 @@ import 'src/rust/api/cache.dart';
 import 'src/rust/api/yandex.dart';
 import 'src/rust/frb_generated.dart';
 import 'ui/home_screen.dart';
+import 'ui/theme.dart';
 import 'ui/login_screen.dart';
 
 Future<void> main() async {
@@ -47,12 +48,7 @@ class MusicApp extends StatelessWidget {
     return MaterialApp(
       title: 'moth-amp',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFEDB04A),
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: buildMothTheme(),
       // Над навигатором, чтобы загрузки были видны и в открытых поверх экранах.
       builder: (context, child) =>
           DownloadsScope(controller: downloads, child: child!),

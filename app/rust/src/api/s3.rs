@@ -127,7 +127,12 @@ pub fn s3_disconnect() -> Result<()> {
 pub async fn s3_tracks() -> Result<Vec<TrackDto>> {
     run(async {
         let lib = require()?;
-        Ok(lib.tracks().await?.iter().map(|e| entry_dto(&lib, e)).collect())
+        Ok(lib
+            .tracks()
+            .await?
+            .iter()
+            .map(|e| entry_dto(&lib, e))
+            .collect())
     })
     .await
 }
@@ -145,7 +150,10 @@ pub async fn s3_upload(paths: Vec<String>) -> Result<S3UploadResultDto> {
             match lib.upload(p).await {
                 Ok(_) => result.uploaded += 1,
                 Err(e) => {
-                    let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(path.clone());
+                    let name = p
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or(path.clone());
                     result.failed.push(format!("{name}: {e}"));
                 }
             }

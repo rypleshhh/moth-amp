@@ -193,6 +193,13 @@ impl Cache {
         Some((path, found))
     }
 
+    /// Файл и запись без проверки подписки — для копирования в своё хранилище.
+    pub fn entry(&self, track_id: &str) -> Option<(PathBuf, Entry)> {
+        let entry = self.index.lock().unwrap().entries.get(track_id).cloned()?;
+        let path = self.tracks_dir().join(&entry.file);
+        path.is_file().then_some((path, entry))
+    }
+
     pub fn contains(&self, track_id: &str) -> bool {
         self.index.lock().unwrap().entries.contains_key(track_id)
     }

@@ -71,7 +71,12 @@ struct Shared {
     token: String,
     grace: Duration,
     downloads: Mutex<HashMap<String, Arc<Download>>>,
+    /// Вызывается с id трека, когда он лёг в кэш (например, копирование в S3).
+    on_commit: std::sync::OnceLock<CommitHook>,
 }
+
+/// Обработчик «трек лёг в кэш».
+pub type CommitHook = Arc<dyn Fn(String) + Send + Sync>;
 
 pub struct Proxy {
     port: u16,
@@ -100,6 +105,7 @@ impl Proxy {
             token: token.clone(),
             grace,
             downloads: Mutex::new(HashMap::new()),
+            on_commit: std::sync::OnceLock::new(),
         });
         let accept_shared = shared.clone();
         tokio::spawn(async move {
@@ -123,6 +129,11 @@ impl Proxy {
             token,
             shared,
         })
+    }
+
+    /// Задать обработчик «трек лёг в кэш» (один раз).
+    pub fn set_on_commit(&self, hook: CommitHook) {
+        let _ = self.shared.on_commit.set(hook);
     }
 
     /// Адрес, который отдаётся плееру.
@@ -420,7 +431,11 @@ async fn write_task(
                             dl.pinned.load(Ordering::SeqCst),
                         )
                         .is_ok();
-                if !committed {
+                if committed {
+                    if let Some(hook) = shared.on_commit.get() {
+                        hook(id.clone());
+                    }
+                } else {
                     let _ = tokio::fs::remove_file(&dl.path).await;
                 }
                 downloads.remove(&id);

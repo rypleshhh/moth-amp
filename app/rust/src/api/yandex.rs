@@ -8,9 +8,9 @@ use std::sync::{Arc, LazyLock, Mutex, RwLock};
 
 use anyhow::{anyhow, Result};
 use moth_core::auth::TokenStore;
-use moth_core::secrets::{SecretStore, SecretTokenStore};
 use moth_core::model::{Account, Playlist, Quality, StreamInfo, Track};
 use moth_core::provider::Provider;
+use moth_core::secrets::{SecretStore, SecretTokenStore};
 use moth_core::yandex::{ApiClient, DeviceCode, YandexConfig, YandexProvider};
 
 static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
@@ -37,7 +37,10 @@ pub(crate) fn provider() -> Result<Arc<YandexProvider>> {
         return Ok(p.clone());
     }
     let store: Arc<dyn TokenStore> = Arc::new(SecretTokenStore::new(secrets()?, "yandex"));
-    let p = Arc::new(YandexProvider::new(ApiClient::new(YandexConfig::default(), store)?));
+    let p = Arc::new(YandexProvider::new(ApiClient::new(
+        YandexConfig::default(),
+        store,
+    )?));
     *slot = Some(p.clone());
     Ok(p)
 }
@@ -226,7 +229,7 @@ pub async fn logout() -> Result<()> {
     run(async {
         provider()?.api().logout().await?;
         super::wave::reset().await;
-        super::cache::wipe();
+        super::cache::wipe().await;
         reset_provider();
         Ok(())
     })
@@ -269,6 +272,10 @@ pub async fn search(query: String) -> Result<Vec<TrackDto>> {
 }
 
 pub async fn stream_url(track_id: String, low_quality: bool) -> Result<StreamDto> {
-    let quality = if low_quality { Quality::Low } else { Quality::High };
+    let quality = if low_quality {
+        Quality::Low
+    } else {
+        Quality::High
+    };
     run(async move { Ok(stream_dto(provider()?.stream(&track_id, quality).await?)) }).await
 }

@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'yandex.dart';
 
-// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `meta_from`, `remember_meta`, `state`, `wipe`
+// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `meta_from`, `mirror_one`, `remember_meta`, `s3_cached_stream`, `state`, `track_from_meta`, `wipe`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CacheState`
 
 /// Открыть кэш в `dir` и запустить прокси. `default_limit_mb` применяется,
@@ -43,6 +43,11 @@ Future<void> cacheSetAuto({required bool enabled}) =>
     RustLib.instance.api.crateApiCacheCacheSetAuto(enabled: enabled);
 
 Future<void> cacheClear() => RustLib.instance.api.crateApiCacheCacheClear();
+
+/// Скопировать в S3 треки локального кэша, которых там ещё нет.
+/// Возвращает число скопированных. Без подключённого S3 — 0.
+Future<int> cacheMirrorToS3() =>
+    RustLib.instance.api.crateApiCacheCacheMirrorToS3();
 
 /// Дописать метаданные и теги трекам, попавшим в кэш без них.
 /// Возвращает, скольким трекам дописано. Нужна сеть.

@@ -75,6 +75,33 @@ pub struct LibraryEntry {
     pub added_at: u64,
 }
 
+/// Трек кэша в бакете (`cache/<источник>/<id>.<ext>`): общий кэш для
+/// всех устройств пользователя. Для треков Яндекса действуют те же правила,
+/// что и для локального кэша (подписка, удаление при выходе).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CachedObject {
+    pub id: String,
+    pub file: String,
+    pub size: u64,
+    pub codec: String,
+    pub bitrate_kbps: Option<u32>,
+    pub meta: Option<TrackMeta>,
+    pub added_at: u64,
+}
+
+impl CachedObject {
+    /// Трек Яндекса (или без метаданных) — нужен подтверждённый Плюс.
+    pub fn needs_plus(&self) -> bool {
+        self.meta.as_ref().is_none_or(|m| m.source == "yandex")
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct CacheIndex {
+    #[serde(default)]
+    tracks: Vec<CachedObject>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct LibraryIndex {
     #[serde(default)]
@@ -315,6 +342,90 @@ impl S3Library {
             .await
     }
 
+    // ---- кэш в бакете ----
+
+    async fn read_cache_index(&self) -> Result<CacheIndex> {
+        match self.get_bytes(&self.key("cache/index.json")).await? {
+            Some(bytes) => Ok(serde_json::from_slice(&bytes).unwrap_or_default()),
+            None => Ok(CacheIndex::default()),
+        }
+    }
+
+    async fn write_cache_index(&self, index: &CacheIndex) -> Result<()> {
+        let json = serde_json::to_vec_pretty(index)?;
+        self.put_bytes(&self.key("cache/index.json"), json, "application/json")
+            .await
+    }
+
+    /// Все треки кэша в бакете.
+    pub async fn cache_list(&self) -> Result<Vec<CachedObject>> {
+        Ok(self.read_cache_index().await?.tracks)
+    }
+
+    pub async fn cache_get(&self, id: &str) -> Result<Option<CachedObject>> {
+        Ok(self.read_cache_index().await?.tracks.into_iter().find(|t| t.id == id))
+    }
+
+    /// Положить файл из локального кэша в бакет (если его там ещё нет).
+    pub async fn cache_put(
+        &self,
+        id: &str,
+        path: &Path,
+        codec: &str,
+        bitrate_kbps: Option<u32>,
+        meta: Option<TrackMeta>,
+    ) -> Result<()> {
+        if !crate::cache::is_safe_id(id) {
+            return Err(Error::Unexpected("некорректный id трека".into()));
+        }
+        let mut index = self.read_cache_index().await?;
+        if index.tracks.iter().any(|t| t.id == id) {
+            return Ok(());
+        }
+        let source = meta.as_ref().map_or("yandex", |m| m.source.as_str()).to_owned();
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("mp3").to_owned();
+        let file = self.key(&format!("cache/{source}/{id}.{ext}"));
+        let bytes = tokio::fs::read(path).await?;
+        let size = bytes.len() as u64;
+        let content_type = if ext == "flac" { "audio/flac" } else { "audio/mpeg" };
+        self.put_bytes(&file, bytes, content_type).await?;
+        index.tracks.retain(|t| t.id != id);
+        index.tracks.push(CachedObject {
+            id: id.to_owned(),
+            file,
+            size,
+            codec: codec.to_owned(),
+            bitrate_kbps,
+            meta,
+            added_at: now_unix(),
+        });
+        self.write_cache_index(&index).await
+    }
+
+    /// Ссылка на поток трека из кэша в бакете.
+    pub fn cache_stream_info(&self, obj: &CachedObject) -> StreamInfo {
+        StreamInfo {
+            url: self.object_url(&obj.file),
+            codec: obj.codec.clone(),
+            bitrate_kbps: obj.bitrate_kbps,
+            is_preview: false,
+        }
+    }
+
+    /// Удалить из бакета кэш треков Яндекса (выход из аккаунта).
+    /// Возвращает число удалённых треков.
+    pub async fn cache_remove_yandex(&self) -> Result<usize> {
+        let mut index = self.read_cache_index().await?;
+        let (gone, keep): (Vec<CachedObject>, Vec<CachedObject>) =
+            index.tracks.into_iter().partition(CachedObject::needs_plus);
+        index.tracks = keep;
+        self.write_cache_index(&index).await?;
+        for obj in &gone {
+            self.delete_key(&obj.file).await?;
+        }
+        Ok(gone.len())
+    }
+
     /// Удалить трек из библиотеки (файл, обложку, запись в индексе).
     pub async fn delete(&self, id: &str) -> Result<()> {
         let mut index = self.read_index().await?;
@@ -471,6 +582,22 @@ mod tests {
 
         lib.delete(&entry.id).await.unwrap();
         assert_eq!(lib.tracks().await.unwrap().len(), before);
+
+        // Кэш в бакете: положить, найти, прочитать, стереть при выходе.
+        let ya = TrackMeta {
+            source: "yandex".into(),
+            id: "777".into(),
+            title: "Трек".into(),
+            ..Default::default()
+        };
+        lib.cache_put("777", &path, "mp3", Some(320), Some(ya)).await.unwrap();
+        lib.cache_put("777", &path, "mp3", Some(320), None).await.unwrap();
+        let obj = lib.cache_get("777").await.unwrap().unwrap();
+        assert!(obj.needs_plus());
+        let resp = reqwest::get(lib.cache_stream_info(&obj).url).await.unwrap();
+        assert_eq!(resp.status(), 200);
+        assert_eq!(lib.cache_remove_yandex().await.unwrap(), 1);
+        assert!(lib.cache_get("777").await.unwrap().is_none());
 
         lib.put_setting("test_eq", b"{\"a\":1}".to_vec()).await.unwrap();
         assert_eq!(lib.get_setting("test_eq").await.unwrap().unwrap(), b"{\"a\":1}");

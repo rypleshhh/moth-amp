@@ -4,6 +4,7 @@ import '../player/player_controller.dart';
 import '../src/rust/api/yandex.dart';
 import '../audio/downloads.dart';
 import 'errors.dart';
+import 'theme.dart';
 import 'track_cover.dart';
 
 String formatDuration(Duration d) {
@@ -53,7 +54,7 @@ class _TrackListState extends State<TrackList>
         if (tracks == null) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (tracks.isEmpty) return const Center(child: Text('Пусто'));
+        if (tracks.isEmpty) return const EmptyNote('тут пока пусто');
 
         return ListenableBuilder(
           listenable: widget.player,
@@ -70,7 +71,7 @@ class _TrackListState extends State<TrackList>
                   selected: t.id == currentId,
                   dense: true,
                   title: Text(
-                    t.title,
+                    t.id == currentId ? '▸ ${t.title}' : t.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -83,7 +84,10 @@ class _TrackListState extends State<TrackList>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (ms != null)
-                        Text(formatDuration(Duration(milliseconds: ms))),
+                        Text(
+                          formatDuration(Duration(milliseconds: ms)),
+                          style: Moth.label,
+                        ),
                       const SizedBox(width: 4),
                       DownloadButton(track: t),
                     ],
