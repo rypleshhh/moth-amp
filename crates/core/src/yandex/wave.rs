@@ -7,6 +7,11 @@
 //!   `trackFinished`, `skip`), по ним волна подстраивается.
 //!
 //! Режимы: «тихий» (`incognito`, отчёты не отправляются) и «обучаемый» (с отчётами).
+//!
+//! Настройки волны — «зёрна» (`seeds`) сессии: `user:onyourwave` или занятие
+//! (`activity:workout`) плюс настроение, характер и язык
+//! (`settingMoodEnergy:calm`, `settingDiversity:discover`, `settingLanguage:russian`).
+//! Список вариантов с названиями отдаёт `GET /rotor/wave/settings`.
 
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -22,6 +27,88 @@ use super::dto::YTrack;
 
 /// Сколько последних сыгранных треков передавать в `queue`.
 const QUEUE_LIMIT: usize = 30;
+
+/// Зерно обычной «Моей волны».
+pub const DEFAULT_SEED: &str = "user:onyourwave";
+
+/// Вариант настройки волны: название и зерно для сессии.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WaveOption {
+    pub name: String,
+    pub seed: String,
+    /// Вариант «любое»: зерно можно не передавать.
+    pub default: bool,
+}
+
+/// Группа вариантов («Под настроение», «По характеру», «По языку»).
+#[derive(Debug, Clone, PartialEq)]
+pub struct WaveGroup {
+    pub name: String,
+    pub options: Vec<WaveOption>,
+}
+
+/// Что можно настроить в волне.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct WaveSettings {
+    /// Занятия: «Просыпаюсь», «Тренируюсь»…
+    pub activities: Vec<WaveOption>,
+    pub groups: Vec<WaveGroup>,
+}
+
+/// Порядок групп настроек.
+const GROUP_ORDER: [&str; 3] = ["moodEnergy", "diversity", "language"];
+
+impl WaveSettings {
+    /// Разбор ответа `/rotor/wave/settings`. Незнакомое пропускается.
+    pub(crate) fn from_json(v: &serde_json::Value) -> Self {
+        let str_of = |v: &serde_json::Value, k: &str| v.get(k)?.as_str().map(str::to_owned);
+        let activities = v["blocks"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|b| b["type"] == "contexts")
+            .flat_map(|b| b["items"].as_array().into_iter().flatten())
+            .filter_map(|it| {
+                let kind = str_of(&it["id"], "type")?;
+                let tag = str_of(&it["id"], "tag")?;
+                Some(WaveOption {
+                    name: str_of(it, "name")?,
+                    seed: format!("{kind}:{tag}"),
+                    default: false,
+                })
+            })
+            .collect();
+        let restrictions = &v["settingRestrictions"];
+        let groups = GROUP_ORDER
+            .iter()
+            .filter_map(|key| {
+                let g = restrictions.get(*key)?;
+                let options: Vec<WaveOption> = g["possibleValues"]
+                    .as_array()?
+                    .iter()
+                    .filter_map(|p| {
+                        Some(WaveOption {
+                            name: str_of(p, "name")?,
+                            seed: str_of(p, "serializedSeed")?,
+                            default: p["unspecified"].as_bool().unwrap_or(false),
+                        })
+                    })
+                    .collect();
+                (!options.is_empty()).then(|| WaveGroup {
+                    name: str_of(g, "name").unwrap_or_default(),
+                    options,
+                })
+            })
+            .collect();
+        Self { activities, groups }
+    }
+}
+
+/// Варианты настроек волны.
+pub async fn settings(api: &ApiClient) -> Result<WaveSettings> {
+    let v: serde_json::Value = api.get("/rotor/wave/settings", &[]).await?;
+    Ok(WaveSettings::from_json(&v))
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,9 +177,19 @@ pub struct Wave {
 
 impl Wave {
     /// Открыть сессию. `learning = false` — тихий режим: incognito и без отчётов.
-    pub async fn start(api: &ApiClient, learning: bool) -> Result<(Self, Vec<Track>)> {
+    /// `seeds` — настройки волны; пустой список — обычная «Моя волна».
+    pub async fn start(
+        api: &ApiClient,
+        learning: bool,
+        seeds: &[String],
+    ) -> Result<(Self, Vec<Track>)> {
+        let seeds: Vec<&str> = if seeds.is_empty() {
+            vec![DEFAULT_SEED]
+        } else {
+            seeds.iter().map(String::as_str).collect()
+        };
         let body = json!({
-            "seeds": ["user:onyourwave"],
+            "seeds": seeds,
             "includeTracksInResponse": true,
             "includeWaveModel": false,
             "interactive": true,
@@ -169,12 +266,12 @@ impl Wave {
             }
             let Some(yt) = item.track else { continue };
             let track = Track::from(yt);
-            if self.known.contains_key(&track.key.id) {
+            if self.known.contains_key(&track.id) {
                 continue;
             }
             let full = full_id(&track);
             self.known
-                .insert(track.key.id.clone(), (full, batch_id.to_owned()));
+                .insert(track.id.clone(), (full, batch_id.to_owned()));
             out.push(track);
         }
         out
@@ -218,8 +315,8 @@ impl Wave {
 
 fn full_id(t: &Track) -> String {
     match t.album.as_ref().and_then(|a| a.id.as_deref()) {
-        Some(album) => format!("{}:{album}", t.key.id),
-        None => t.key.id.clone(),
+        Some(album) => format!("{}:{album}", t.id),
+        None => t.id.clone(),
     }
 }
 
@@ -249,6 +346,36 @@ fn iso8601_utc(secs: u64, millis: u32) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn settings_from_api() {
+        // Урезанный настоящий ответ /rotor/wave/settings.
+        let v: serde_json::Value = serde_json::from_str(r#"{
+            "blocks": [{"type": "contexts", "items": [
+                {"id": {"type": "activity", "tag": "wake-up"}, "name": "Просыпаюсь"},
+                {"id": {"type": "activity", "tag": "workout"}, "name": "Тренируюсь"}
+            ]}],
+            "settingRestrictions": {
+                "language": {"name": "По языку", "possibleValues": [
+                    {"value": "russian", "name": "Русский", "serializedSeed": "settingLanguage:russian"},
+                    {"value": "any", "name": "Любой", "unspecified": true, "serializedSeed": "settingLanguage:any"}
+                ]},
+                "moodEnergy": {"name": "Под настроение", "possibleValues": [
+                    {"value": "calm", "name": "Спокойное", "serializedSeed": "settingMoodEnergy:calm"}
+                ]},
+                "unknown": {"name": "Что-то новое", "possibleValues": []}
+            }
+        }"#).unwrap();
+        let s = WaveSettings::from_json(&v);
+        assert_eq!(s.activities.len(), 2);
+        assert_eq!(s.activities[1].seed, "activity:workout");
+        assert_eq!(s.activities[1].name, "Тренируюсь");
+        // Настроение первым, неизвестные группы пропущены.
+        let names: Vec<&str> = s.groups.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(names, ["Под настроение", "По языку"]);
+        assert!(s.groups[1].options[1].default);
+        assert_eq!(s.groups[1].options[0].seed, "settingLanguage:russian");
+    }
+
     fn item(id: u64, album: u64) -> SequenceItem {
         let json = format!(
             r#"{{"type":"track","track":{{"id":"{id}","title":"T{id}","albums":[{{"id":{album}}}]}}}}"#
@@ -273,7 +400,7 @@ mod tests {
         assert_eq!(first.len(), 2);
         let second = w.accept("b2", vec![item(2, 20), item(3, 30)]);
         assert_eq!(second.len(), 1);
-        assert_eq!(second[0].key.id, "3");
+        assert_eq!(second[0].id, "3");
         assert_eq!(w.known["1"], ("1:10".to_owned(), "b1".to_owned()));
         assert_eq!(w.known["3"].1, "b2");
     }

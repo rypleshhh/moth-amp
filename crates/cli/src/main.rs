@@ -5,14 +5,12 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use moth_core::auth::KeyringTokenStore;
 use moth_core::cache::proxy::{Proxy, ResolvedTrack, Resolver};
 use moth_core::cache::{tags, Cache};
-use moth_core::model::TrackMeta;
-use moth_core::model::{Quality, Track};
-use moth_core::provider::Provider;
+use moth_core::model::{Quality, Track, TrackMeta};
+use moth_core::secrets::{KeyringSecretStore, SecretTokenStore};
 use moth_core::yandex::wave::Wave;
-use moth_core::yandex::{ApiClient, YandexConfig, YandexProvider};
+use moth_core::yandex::{ApiClient, YandexProvider};
 
 #[derive(Parser)]
 #[command(name = "moth", about = "moth-amp: консольная проверка ядра")]
@@ -83,8 +81,12 @@ impl From<QualityArg> for Quality {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let store = Arc::new(KeyringTokenStore::new("moth-amp", "yandex"));
-    let api = ApiClient::new(YandexConfig::default(), store)?;
+    // То же хранилище, что у приложения: войти можно один раз.
+    let store = Arc::new(SecretTokenStore::new(
+        Arc::new(KeyringSecretStore::new("moth-amp")),
+        "yandex",
+    ));
+    let api = ApiClient::new(store)?;
     let yandex = Arc::new(YandexProvider::new(api));
 
     match cli.command {
@@ -109,13 +111,15 @@ async fn main() -> Result<()> {
         Command::Playlists => {
             for p in yandex.playlists().await? {
                 let count = p.track_count.map(|c| c.to_string()).unwrap_or_default();
-                println!("{:>8}  {}  [{count}]", p.key.id, p.title);
+                println!("{:>8}  {}  [{count}]", p.id, p.title);
             }
         }
-        Command::Playlist { kind } => print_tracks(yandex.playlist_tracks(&kind).await?.iter()),
-        Command::Search { query } => print_tracks(yandex.search_tracks(&query).await?.iter()),
+        Command::Playlist { kind } => {
+            print_tracks(yandex.playlist_tracks(&kind, None).await?.iter())
+        }
+        Command::Search { query } => print_tracks(yandex.search_all(&query).await?.tracks.iter()),
         Command::Wave { learning, batches } => {
-            let (mut wave, first) = Wave::start(yandex.api(), learning).await?;
+            let (mut wave, first) = Wave::start(yandex.api(), learning, &[]).await?;
             println!("Режим: {}", if learning { "обучаемый" } else { "тихий (incognito)" });
             print_tracks(first.iter());
             for _ in 1..batches {
@@ -151,10 +155,10 @@ async fn main() -> Result<()> {
             proxy.download(&track_id).await?;
 
             let (path, entry) = cache.lookup(&track_id).context("трек не попал в кэш")?;
-            let (title, artist, cover) = tags::read_title_artist(&path)?;
+            let info = tags::read_file_info(&path)?;
             println!("файл:   {} ({:.2} МБ, {})", path.display(), entry.size as f64 / 1048576.0, entry.codec);
-            println!("теги:   {} — {}", artist.unwrap_or_default(), title.unwrap_or_default());
-            println!("обложка: {}", if cover { "есть" } else { "нет" });
+            println!("теги:   {} — {}", info.artists.join(", "), info.title.unwrap_or_default());
+            println!("обложка: {}", if info.cover.is_some() { "есть" } else { "нет" });
         }
         Command::Url { track_id, quality } => {
             let s = yandex.stream(&track_id, quality.into()).await?;
@@ -200,6 +204,6 @@ fn print_tracks<'a>(tracks: impl Iterator<Item = &'a Track>) {
             .map(|ms| format!("{}:{:02}", ms / 60_000, (ms / 1000) % 60))
             .unwrap_or_default();
         let mark = if t.available { " " } else { "✗" };
-        println!("{mark} {:>10}  {} — {}  [{dur}]", t.key.id, t.artist_line(), t.full_title());
+        println!("{mark} {:>10}  {} — {}  [{dur}]", t.id, t.artist_line(), t.full_title());
     }
 }

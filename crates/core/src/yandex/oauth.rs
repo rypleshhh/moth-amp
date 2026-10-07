@@ -11,12 +11,12 @@ use serde::Deserialize;
 use crate::auth::{now_unix, TokenSet};
 use crate::{Error, Result};
 
-pub const OAUTH_BASE: &str = "https://oauth.yandex.ru";
+const OAUTH_BASE: &str = "https://oauth.yandex.ru";
 
 /// Общий client_id сообщества (тот же, что в MarshalX/yandex-music-api и других
-/// неофициальных клиентах). Не секрет; может быть переопределён в конфиге.
-pub const DEFAULT_CLIENT_ID: &str = "23cabbbdc6cd418abb4b39c32c41195d";
-pub const DEFAULT_CLIENT_SECRET: &str = "53bc75238f0c4d08a118e51fe9203300";
+/// неофициальных клиентах). Не секрет: он вшит во все такие клиенты.
+const CLIENT_ID: &str = "23cabbbdc6cd418abb4b39c32c41195d";
+const CLIENT_SECRET: &str = "53bc75238f0c4d08a118e51fe9203300";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DeviceCode {
@@ -62,26 +62,18 @@ struct OAuthErrorBody {
 #[derive(Clone)]
 pub struct OAuthClient {
     http: reqwest::Client,
-    base: String,
-    client_id: String,
-    client_secret: String,
 }
 
 impl OAuthClient {
-    pub fn new(http: reqwest::Client, client_id: impl Into<String>, client_secret: impl Into<String>) -> Self {
-        Self {
-            http,
-            base: OAUTH_BASE.to_owned(),
-            client_id: client_id.into(),
-            client_secret: client_secret.into(),
-        }
+    pub fn new(http: reqwest::Client) -> Self {
+        Self { http }
     }
 
     pub async fn request_device_code(&self) -> Result<DeviceCode> {
         let resp = self
             .http
-            .post(format!("{}/device/code", self.base))
-            .form(&[("client_id", self.client_id.as_str())])
+            .post(format!("{OAUTH_BASE}/device/code"))
+            .form(&[("client_id", CLIENT_ID)])
             .send()
             .await?;
         let status = resp.status();
@@ -96,12 +88,12 @@ impl OAuthClient {
     pub async fn poll_token(&self, device_code: &str) -> Result<PollResult> {
         let resp = self
             .http
-            .post(format!("{}/token", self.base))
+            .post(format!("{OAUTH_BASE}/token"))
             .form(&[
                 ("grant_type", "device_code"),
                 ("code", device_code),
-                ("client_id", self.client_id.as_str()),
-                ("client_secret", self.client_secret.as_str()),
+                ("client_id", CLIENT_ID),
+                ("client_secret", CLIENT_SECRET),
             ])
             .send()
             .await?;
@@ -130,12 +122,12 @@ impl OAuthClient {
     pub async fn refresh(&self, refresh_token: &str) -> Result<TokenSet> {
         let resp = self
             .http
-            .post(format!("{}/token", self.base))
+            .post(format!("{OAUTH_BASE}/token"))
             .form(&[
                 ("grant_type", "refresh_token"),
                 ("refresh_token", refresh_token),
-                ("client_id", self.client_id.as_str()),
-                ("client_secret", self.client_secret.as_str()),
+                ("client_id", CLIENT_ID),
+                ("client_secret", CLIENT_SECRET),
             ])
             .send()
             .await?;

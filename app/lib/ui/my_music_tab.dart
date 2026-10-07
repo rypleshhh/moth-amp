@@ -1,7 +1,9 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../audio/downloads.dart';
 import '../player/player_controller.dart';
+import '../src/rust/api/cache.dart';
 import '../src/rust/api/s3.dart';
 import 'errors.dart';
 import 's3_dialog.dart';
@@ -33,6 +35,29 @@ class _MyMusicTabState extends State<MyMusicTab>
 
   Future<void> _settings() async {
     if (await showS3Dialog(context)) _reload();
+  }
+
+  Future<void> _sync() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final downloads = DownloadsScope.of(context);
+    try {
+      final r = await downloads.syncS3();
+      messenger.showSnackBar(SnackBar(content: Text(_syncText(r))));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorText(e))));
+    }
+    if (mounted) setState(() => _version++);
+  }
+
+  static String _syncText(S3SyncDto r) {
+    final parts = [
+      if (r.uploaded > 0) 'загружено в S3: ${r.uploaded}',
+      if (r.found > 0) 'найдено в хранилище: ${r.found}',
+      if (r.removed > 0) 'убрано пропавших: ${r.removed}',
+    ];
+    return parts.isEmpty
+        ? 'Всё уже синхронизировано'
+        : 'Синхронизировано — ${parts.join(', ')}';
   }
 
   Future<void> _upload() async {
@@ -80,12 +105,16 @@ class _MyMusicTabState extends State<MyMusicTab>
           return const Center(child: CircularProgressIndicator());
         }
         if (!status.connected) return _NotConnected(onConnect: _settings);
+        final syncing = DownloadsScope.of(context).syncing;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-              child: Row(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   FilledButton.icon(
                     icon: _uploading
@@ -99,16 +128,17 @@ class _MyMusicTabState extends State<MyMusicTab>
                     ),
                     onPressed: _uploading ? null : _upload,
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Обновить',
-                    icon: const Icon(Icons.refresh),
-                    onPressed: () => setState(() => _version++),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${status.bucket} · ${Uri.tryParse(status.endpoint)?.host ?? status.endpoint}',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  OutlinedButton.icon(
+                    icon: syncing
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync),
+                    label: Text(
+                      syncing ? 'Синхронизация…' : 'Синхронизировать',
+                    ),
+                    onPressed: syncing ? null : _sync,
                   ),
                   IconButton(
                     tooltip: 'Настройки S3',
@@ -116,6 +146,15 @@ class _MyMusicTabState extends State<MyMusicTab>
                     onPressed: _settings,
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                '${status.bucket} · ${Uri.tryParse(status.endpoint)?.host ?? status.endpoint}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
             const Divider(height: 1),

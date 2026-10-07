@@ -149,7 +149,7 @@ impl Proxy {
         }
         let cache = &self.shared.cache;
         if cache.contains(track_id) {
-            return Ok(());
+            return cache.pin(track_id);
         }
         let dl = attach(&self.shared, track_id)
             .await

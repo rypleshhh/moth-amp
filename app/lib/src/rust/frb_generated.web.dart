@@ -124,6 +124,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TrackDto> dco_decode_list_track_dto(dynamic raw);
 
   @protected
+  List<WaveGroupDto> dco_decode_list_wave_group_dto(dynamic raw);
+
+  @protected
+  List<WaveOptionDto> dco_decode_list_wave_option_dto(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -142,13 +148,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   S3StatusDto dco_decode_s_3_status_dto(dynamic raw);
 
   @protected
+  S3SyncDto dco_decode_s_3_sync_dto(dynamic raw);
+
+  @protected
   S3UploadResultDto dco_decode_s_3_upload_result_dto(dynamic raw);
 
   @protected
   SearchDto dco_decode_search_dto(dynamic raw);
-
-  @protected
-  StreamDto dco_decode_stream_dto(dynamic raw);
 
   @protected
   TrackDto dco_decode_track_dto(dynamic raw);
@@ -161,6 +167,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  WaveGroupDto dco_decode_wave_group_dto(dynamic raw);
+
+  @protected
+  WaveOptionDto dco_decode_wave_option_dto(dynamic raw);
+
+  @protected
+  WaveSettingsDto dco_decode_wave_settings_dto(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -263,6 +278,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TrackDto> sse_decode_list_track_dto(SseDeserializer deserializer);
 
   @protected
+  List<WaveGroupDto> sse_decode_list_wave_group_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WaveOptionDto> sse_decode_list_wave_option_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -281,15 +306,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   S3StatusDto sse_decode_s_3_status_dto(SseDeserializer deserializer);
 
   @protected
+  S3SyncDto sse_decode_s_3_sync_dto(SseDeserializer deserializer);
+
+  @protected
   S3UploadResultDto sse_decode_s_3_upload_result_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   SearchDto sse_decode_search_dto(SseDeserializer deserializer);
-
-  @protected
-  StreamDto sse_decode_stream_dto(SseDeserializer deserializer);
 
   @protected
   TrackDto sse_decode_track_dto(SseDeserializer deserializer);
@@ -302,6 +327,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  WaveGroupDto sse_decode_wave_group_dto(SseDeserializer deserializer);
+
+  @protected
+  WaveOptionDto sse_decode_wave_option_dto(SseDeserializer deserializer);
+
+  @protected
+  WaveSettingsDto sse_decode_wave_settings_dto(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -433,6 +467,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_track_dto(List<TrackDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_wave_group_dto(
+    List<WaveGroupDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_wave_option_dto(
+    List<WaveOptionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -451,6 +497,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_s_3_status_dto(S3StatusDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_s_3_sync_dto(S3SyncDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_s_3_upload_result_dto(
     S3UploadResultDto self,
     SseSerializer serializer,
@@ -458,9 +507,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_search_dto(SearchDto self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_stream_dto(StreamDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_track_dto(TrackDto self, SseSerializer serializer);
@@ -473,6 +519,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wave_group_dto(WaveGroupDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wave_option_dto(WaveOptionDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wave_settings_dto(
+    WaveSettingsDto self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

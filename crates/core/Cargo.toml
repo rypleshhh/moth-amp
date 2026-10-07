@@ -6,12 +6,11 @@ publish.workspace = true
 
 [features]
 default = ["keyring-store"]
-# Хранение токена в системном хранилище (Windows Credential Manager, macOS Keychain,
-# Secret Service). На Android токен хранит UI-слой через Keystore.
+# Секреты в системном хранилище (Windows Credential Manager, macOS Keychain,
+# Secret Service). На Android вместо него — файлы в приватной папке приложения.
 keyring-store = ["dep:keyring"]
 
 [dependencies]
-async-trait.workspace = true
 keyring = { workspace = true, optional = true }
 lofty.workspace = true
 md5.workspace = true

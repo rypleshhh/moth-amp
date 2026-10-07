@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenSet {
@@ -50,8 +50,8 @@ pub fn now_unix() -> u64 {
         .unwrap_or(0)
 }
 
-/// Где хранится токен. На десктопе — системное хранилище, на Android — Keystore
-/// через UI-слой, в тестах — память.
+/// Где хранится токен: в приложении и CLI — [`crate::secrets::SecretTokenStore`],
+/// в тестах — [`MemoryTokenStore`].
 pub trait TokenStore: Send + Sync {
     fn load(&self) -> Result<Option<TokenSet>>;
     fn save(&self, tokens: &TokenSet) -> Result<()>;
@@ -84,52 +84,6 @@ impl TokenStore for MemoryTokenStore {
     fn clear(&self) -> Result<()> {
         *self.inner.lock().unwrap() = None;
         Ok(())
-    }
-}
-
-/// Хранение в системном хранилище учётных данных (Windows Credential Manager и т.п.).
-#[cfg(feature = "keyring-store")]
-pub struct KeyringTokenStore {
-    service: String,
-    user: String,
-}
-
-#[cfg(feature = "keyring-store")]
-impl KeyringTokenStore {
-    pub fn new(service: impl Into<String>, user: impl Into<String>) -> Self {
-        Self {
-            service: service.into(),
-            user: user.into(),
-        }
-    }
-
-    fn entry(&self) -> Result<keyring::Entry> {
-        keyring::Entry::new(&self.service, &self.user).map_err(|e| Error::Storage(e.to_string()))
-    }
-}
-
-#[cfg(feature = "keyring-store")]
-impl TokenStore for KeyringTokenStore {
-    fn load(&self) -> Result<Option<TokenSet>> {
-        match self.entry()?.get_password() {
-            Ok(json) => Ok(Some(serde_json::from_str(&json)?)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(Error::Storage(e.to_string())),
-        }
-    }
-
-    fn save(&self, tokens: &TokenSet) -> Result<()> {
-        let json = serde_json::to_string(tokens)?;
-        self.entry()?
-            .set_password(&json)
-            .map_err(|e| Error::Storage(e.to_string()))
-    }
-
-    fn clear(&self) -> Result<()> {
-        match self.entry()?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(Error::Storage(e.to_string())),
-        }
     }
 }
 

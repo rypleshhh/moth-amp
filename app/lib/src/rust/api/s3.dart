@@ -26,9 +26,6 @@ Future<List<TrackDto>> s3Tracks() => RustLib.instance.api.crateApiS3S3Tracks();
 Future<S3UploadResultDto> s3Upload({required List<String> paths}) =>
     RustLib.instance.api.crateApiS3S3Upload(paths: paths);
 
-Future<void> s3Delete({required String trackId}) =>
-    RustLib.instance.api.crateApiS3S3Delete(trackId: trackId);
-
 class S3ConfigDto {
   final String endpoint;
   final String region;

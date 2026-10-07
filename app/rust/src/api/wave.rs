@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use anyhow::{anyhow, Result};
-use moth_core::yandex::wave::Wave;
+use moth_core::yandex::wave::{self, Wave, WaveOption};
 use tokio::sync::Mutex;
 
 use super::yandex::{provider, run, track_dtos, TrackDto};
@@ -15,11 +15,59 @@ pub(crate) async fn reset() {
     *WAVE.lock().await = None;
 }
 
+/// Вариант настройки волны.
+pub struct WaveOptionDto {
+    pub name: String,
+    /// Зерно для `wave_start`.
+    pub seed: String,
+    /// Вариант «любое».
+    pub is_default: bool,
+}
+
+pub struct WaveGroupDto {
+    pub name: String,
+    pub options: Vec<WaveOptionDto>,
+}
+
+/// Что можно настроить в волне: занятия и группы (настроение, характер, язык).
+pub struct WaveSettingsDto {
+    pub activities: Vec<WaveOptionDto>,
+    pub groups: Vec<WaveGroupDto>,
+}
+
+fn option_dto(o: WaveOption) -> WaveOptionDto {
+    WaveOptionDto {
+        name: o.name,
+        seed: o.seed,
+        is_default: o.default,
+    }
+}
+
+/// Варианты настроек волны (названия — от Яндекса).
+pub async fn wave_settings() -> Result<WaveSettingsDto> {
+    run(async {
+        let s = wave::settings(provider()?.api()).await?;
+        Ok(WaveSettingsDto {
+            activities: s.activities.into_iter().map(option_dto).collect(),
+            groups: s
+                .groups
+                .into_iter()
+                .map(|g| WaveGroupDto {
+                    name: g.name,
+                    options: g.options.into_iter().map(option_dto).collect(),
+                })
+                .collect(),
+        })
+    })
+    .await
+}
+
 /// Запустить волну. `learning = false` — тихий режим: incognito, отчёты не отправляются.
-pub async fn wave_start(learning: bool) -> Result<Vec<TrackDto>> {
+/// `seeds` — настройки (занятие, настроение…); пустой список — обычная волна.
+pub async fn wave_start(learning: bool, seeds: Vec<String>) -> Result<Vec<TrackDto>> {
     run(async move {
         let p = provider()?;
-        let (wave, tracks) = Wave::start(p.api(), learning).await?;
+        let (wave, tracks) = Wave::start(p.api(), learning, &seeds).await?;
         *WAVE.lock().await = Some(wave);
         Ok(track_dtos(tracks))
     })

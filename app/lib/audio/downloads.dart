@@ -53,6 +53,23 @@ class DownloadController extends ChangeNotifier {
     }
   }
 
+  /// Идёт синхронизация с S3.
+  bool syncing = false;
+
+  /// «Синхронизировать»: сверить списки с бакетом и загрузить в S3
+  /// скачанное на этом устройстве. Ошибка — исключением.
+  Future<S3SyncDto> syncS3() async {
+    syncing = true;
+    notifyListeners();
+    try {
+      return await s3Sync();
+    } finally {
+      syncing = false;
+      version++;
+      notifyListeners();
+    }
+  }
+
   /// Скачать плейлист в `<папка загрузок>/<название>/`: треки по одному,
   /// недоступные пропускаются, сбой одного не останавливает остальные.
   /// Возвращает (скачано, не удалось).
@@ -204,7 +221,7 @@ class PlaylistDownloadButton extends StatelessWidget {
       );
     }
     return IconButton(
-      tooltip: 'Скачать плейлист в папку «$name»',
+      tooltip: 'Скачать всё в папку «$name»',
       icon: const Icon(Icons.download_for_offline_outlined),
       onPressed: () async {
         final messenger = ScaffoldMessenger.of(context);
@@ -222,7 +239,7 @@ class PlaylistDownloadButton extends StatelessWidget {
           messenger.showSnackBar(
             SnackBar(
               content: Text(
-                'Плейлист «$name»: скачано $ok'
+                '«$name»: скачано $ok'
                 '${failed > 0 ? ', не удалось $failed' : ''}',
               ),
             ),

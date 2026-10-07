@@ -2,8 +2,6 @@
 //!
 //! Схема: `/tracks/{id}/download-info` → список вариантов (кодек, битрейт,
 //! `downloadInfoUrl`) → XML с `host`, `path`, `ts`, `s` → подписанная ссылка.
-//! FLAC через `get-file-info` будет добавлен отдельно: там нужен ключ из
-//! веб-бандла и механизм его обновления.
 
 use crate::model::Quality;
 use crate::{Error, Result};
@@ -62,7 +60,7 @@ pub(crate) fn pick_variant(variants: &[DownloadInfo], quality: Quality) -> Optio
         let by_quality = match quality {
             // Самый лёгкий поток; mp3 и aac на равных.
             Quality::Low => bitrate(b).cmp(&bitrate(a)),
-            Quality::High | Quality::Lossless => bitrate(a)
+            Quality::High => bitrate(a)
                 .cmp(&bitrate(b))
                 .then(codec_rank(&a.codec).cmp(&codec_rank(&b.codec))),
         };

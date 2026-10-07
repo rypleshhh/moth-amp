@@ -140,14 +140,18 @@ class PlayerController extends ChangeNotifier {
   }
 
   /// Запустить «Мою волну». `learning = false` — тихий режим.
-  Future<void> startWave({required bool learning}) async {
+  /// `seeds` — настройки (занятие, настроение…); пустой — обычная волна.
+  Future<void> startWave({
+    required bool learning,
+    List<String> seeds = const [],
+  }) async {
     _finishCurrent(skipped: true);
     final request = ++_request;
     loading = true;
     error = null;
     notifyListeners();
     try {
-      final tracks = await waveStart(learning: learning);
+      final tracks = await waveStart(learning: learning, seeds: seeds);
       if (request != _request) return;
       waveActive = true;
       waveLearning = learning;

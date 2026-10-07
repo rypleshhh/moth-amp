@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'yandex.dart';
 
-// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `meta_from`, `mirror_one`, `remember_meta`, `s3_cached_stream`, `state`, `track_from_meta`, `wipe`
+// These functions are ignored because they are not marked as `pub`: `confirm_plus`, `forget_plus`, `meta_from`, `mirror_missing`, `mirror_one`, `remember_meta`, `s3_cached_stream`, `state`, `track_from_meta`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CacheState`
 
 /// Открыть кэш в `dir` и запустить прокси. `default_limit_mb` применяется,
@@ -53,6 +53,10 @@ Future<void> cacheClear() => RustLib.instance.api.crateApiCacheCacheClear();
 /// Возвращает число скопированных. Без подключённого S3 — 0.
 Future<int> cacheMirrorToS3() =>
     RustLib.instance.api.crateApiCacheCacheMirrorToS3();
+
+/// «Синхронизировать»: сверить списки с тем, что лежит в бакете, затем
+/// загрузить в S3 скачанное на этом устройстве, чего там ещё нет.
+Future<S3SyncDto> s3Sync() => RustLib.instance.api.crateApiCacheS3Sync();
 
 /// Дописать метаданные и теги трекам, попавшим в кэш без них.
 /// Возвращает, скольким трекам дописано. Нужна сеть.
@@ -162,4 +166,35 @@ class PlaySourceDto {
           bitrateKbps == other.bitrateKbps &&
           isPreview == other.isPreview &&
           cached == other.cached;
+}
+
+/// Итог синхронизации с S3.
+class S3SyncDto {
+  /// Загружено в S3 с этого устройства.
+  final int uploaded;
+
+  /// Найдено в бакете файлов, которых не было в списках
+  /// (положены вручную или запись потерялась).
+  final int found;
+
+  /// Убрано записей, чьих файлов в бакете больше нет.
+  final int removed;
+
+  const S3SyncDto({
+    required this.uploaded,
+    required this.found,
+    required this.removed,
+  });
+
+  @override
+  int get hashCode => uploaded.hashCode ^ found.hashCode ^ removed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is S3SyncDto &&
+          runtimeType == other.runtimeType &&
+          uploaded == other.uploaded &&
+          found == other.found &&
+          removed == other.removed;
 }

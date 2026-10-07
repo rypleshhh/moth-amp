@@ -8,18 +8,16 @@ import '../player/player_controller.dart';
 import '../src/rust/api/eq.dart';
 import 'player_bar.dart';
 import 'quick_eq.dart';
+import 'theme.dart';
 
-/// Палитра «ночь и свет лампы».
+/// Цвета деки поверх палитры [Moth]: панель, дисплей, блики и тени рамок.
 abstract final class DeckColors {
   static const panel = Color(0xFF1C1D24);
   static const lcd = Color(0xFF0C0D11);
-  static const amber = Color(0xFFEDB04A);
   static const amberDim = Color(0x66EDB04A);
   static const light = Color(0x1FFFFFFF);
   static const shadow = Color(0x99000000);
 }
-
-const _mono = 'PlexMono';
 
 /// Выпуклая (или вдавленная) панель в духе классических десктопных плееров.
 class Bevel extends StatelessWidget {
@@ -129,7 +127,7 @@ class _Lcd extends StatelessWidget {
       if (player.waveActive) 'ВОЛНА',
     ];
     const small = TextStyle(
-      fontFamily: _mono,
+      fontFamily: Moth.mono,
       fontSize: 11,
       color: DeckColors.amberDim,
       letterSpacing: 1,
@@ -151,7 +149,7 @@ class _Lcd extends StatelessWidget {
                     ? Icons.play_arrow
                     : Icons.pause,
                 size: 18,
-                color: DeckColors.amber,
+                color: Moth.amber,
               ),
               const SizedBox(width: 6),
               _TimeDisplay(player: player),
@@ -176,9 +174,9 @@ class _Lcd extends StatelessWidget {
                 ? 'moth-amp · ничего не играет'
                 : '${track.artists} — ${track.title}',
             style: const TextStyle(
-              fontFamily: _mono,
+              fontFamily: Moth.mono,
               fontSize: 14,
-              color: DeckColors.amber,
+              color: Moth.amber,
             ),
           ),
           const SizedBox(height: 10),
@@ -223,10 +221,10 @@ class _TimeDisplayState extends State<_TimeDisplay> {
           return Text(
             shown,
             style: const TextStyle(
-              fontFamily: _mono,
+              fontFamily: Moth.mono,
               fontSize: 34,
               height: 1,
-              color: DeckColors.amber,
+              color: Moth.amber,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           );
@@ -337,7 +335,7 @@ class _EqCurve extends StatelessWidget {
               child: Text(
                 s.enabled ? 'EQ' : 'EQ ВЫКЛ',
                 style: const TextStyle(
-                  fontFamily: _mono,
+                  fontFamily: Moth.mono,
                   fontSize: 9,
                   color: DeckColors.amberDim,
                 ),
@@ -374,7 +372,7 @@ class _CurvePainter extends CustomPainter {
       final y = mid - db / _rangeDb * (mid - 2);
       i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
     }
-    final color = enabled ? DeckColors.amber : DeckColors.amberDim;
+    final color = enabled ? Moth.amber : DeckColors.amberDim;
     final fill = Path.from(path)
       ..lineTo(size.width, mid)
       ..lineTo(0, mid)
@@ -460,7 +458,7 @@ class _DeckButton extends StatelessWidget {
               child: Icon(
                 icon,
                 size: big ? 28 : 22,
-                color: big ? DeckColors.amber : null,
+                color: big ? Moth.amber : null,
               ),
             ),
           ),

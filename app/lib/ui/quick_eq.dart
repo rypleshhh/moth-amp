@@ -4,14 +4,7 @@ import '../audio/eq_controller.dart';
 import '../src/rust/api/eq.dart';
 import 'deck.dart';
 import 'equalizer_screen.dart';
-
-String _freq(double hz) {
-  if (hz >= 1000) {
-    final k = hz / 1000;
-    return '${k == k.roundToDouble() ? k.round() : k.toStringAsFixed(1)}k';
-  }
-  return hz.round().toString();
-}
+import 'theme.dart';
 
 /// Быстрый эквалайзер поверх обложки: вкл/выкл, пресет, предусилитель,
 /// полосы. Всё остальное — в «Подробнее».
@@ -24,7 +17,7 @@ class QuickEq extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const label = TextStyle(
-      fontFamily: 'PlexMono',
+      fontFamily: Moth.mono,
       fontSize: 10,
       color: DeckColors.amberDim,
     );
@@ -45,9 +38,9 @@ class QuickEq extends StatelessWidget {
                   const Text(
                     'ЭКВАЛАЙЗЕР',
                     style: TextStyle(
-                      fontFamily: 'PlexMono',
+                      fontFamily: Moth.mono,
                       fontSize: 12,
-                      color: DeckColors.amber,
+                      color: Moth.amber,
                     ),
                   ),
                   const Spacer(),
@@ -181,7 +174,7 @@ class _BandColumn extends StatelessWidget {
             ),
           ),
         ),
-        FittedBox(child: Text(_freq(band.freqHz), style: labelStyle)),
+        FittedBox(child: Text(formatFreq(band.freqHz), style: labelStyle)),
       ],
     );
   }

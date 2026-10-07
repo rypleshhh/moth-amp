@@ -10,6 +10,7 @@
 //! Запросы подписываются (AWS SigV4) временными ссылками; воспроизведение идёт
 //! по ссылке напрямую, Range поддерживается самим S3.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 use std::time::Duration;
@@ -94,6 +95,60 @@ impl CachedObject {
     pub fn needs_plus(&self) -> bool {
         self.meta.as_ref().is_none_or(|m| m.source == "yandex")
     }
+}
+
+/// Итог сверки бакета с индексами.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ReindexReport {
+    /// Найдено файлов, которых не было в индексах.
+    pub added: u32,
+    /// Убрано записей, чьих файлов в бакете больше нет.
+    pub removed: u32,
+}
+
+/// Расширение аудиофайла, который понимает приложение.
+fn audio_ext(key: &str) -> Option<&'static str> {
+    let lower = key.to_ascii_lowercase();
+    if lower.ends_with(".mp3") {
+        Some("mp3")
+    } else if lower.ends_with(".flac") {
+        Some("flac")
+    } else {
+        None
+    }
+}
+
+/// Имя файла без папок и расширения.
+fn file_stem(key: &str) -> &str {
+    let name = key.rsplit('/').next().unwrap_or(key);
+    name.rsplit_once('.').map_or(name, |(stem, _)| stem)
+}
+
+/// id трека из имени «Исполнитель — Название (id).mp3» или «id.mp3».
+fn id_from_file_name(name: &str) -> Option<&str> {
+    let stem = name.rsplit_once('.')?.0;
+    let id = match stem.rsplit_once(" (") {
+        Some((_, rest)) => rest.strip_suffix(')')?,
+        None => stem,
+    };
+    crate::cache::is_safe_id(id).then_some(id)
+}
+
+/// Теги файла из памяти: lofty читает с диска, поэтому через временный файл.
+async fn info_from_bytes(bytes: Vec<u8>, ext: &'static str) -> Result<tags::FileInfo> {
+    tokio::task::spawn_blocking(move || {
+        let path = std::env::temp_dir().join(format!(
+            "moth-reindex-{}-{:x}.{ext}",
+            std::process::id(),
+            md5::compute(&bytes)
+        ));
+        std::fs::write(&path, &bytes)?;
+        let info = tags::read_file_info(&path);
+        let _ = std::fs::remove_file(&path);
+        info
+    })
+    .await
+    .map_err(|e| Error::Unexpected(e.to_string()))?
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -293,21 +348,43 @@ impl S3Library {
         };
         let bytes = tokio::fs::read(path).await?;
         let id = format!("{:x}", md5::compute(&bytes));
-        let size = bytes.len() as u64;
         let fallback_title = path
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| id.clone());
         let named = TrackMeta {
-            title: info.title.clone().filter(|t| !t.trim().is_empty()).unwrap_or(fallback_title),
+            title: info
+                .title
+                .clone()
+                .filter(|t| !t.trim().is_empty())
+                .unwrap_or_else(|| fallback_title.clone()),
             artists: info.artists.clone(),
             ..Default::default()
         };
         let name = crate::cache::readable_file_name(&id, Some(&named), info.codec);
         let file = self.key(&format!("tracks/{name}"));
         let content_type = if info.codec == "flac" { "audio/flac" } else { "audio/mpeg" };
+        let size = bytes.len() as u64;
         self.put_bytes(&file, bytes, content_type).await?;
+        let entry = self.library_entry(id, file, size, info, fallback_title).await?;
 
+        let mut index = self.read_index().await?;
+        index.tracks.retain(|t| t.id != entry.id);
+        index.tracks.push(entry.clone());
+        self.write_index(&index).await?;
+        Ok(entry)
+    }
+
+    /// Запись библиотеки для файла, уже лежащего в бакете под ключом `file`:
+    /// обложка из тегов кладётся в `covers/`.
+    async fn library_entry(
+        &self,
+        id: String,
+        file: String,
+        size: u64,
+        info: tags::FileInfo,
+        fallback_title: String,
+    ) -> Result<LibraryEntry> {
         let cover = match info.cover {
             Some((data, mime)) => {
                 let ext = if mime.contains("png") { "png" } else { "jpg" };
@@ -317,13 +394,8 @@ impl S3Library {
             }
             None => None,
         };
-
-        let title = info.title.filter(|t| !t.trim().is_empty()).unwrap_or_else(|| {
-            path.file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_else(|| id.clone())
-        });
-        let entry = LibraryEntry {
+        let title = info.title.filter(|t| !t.trim().is_empty()).unwrap_or(fallback_title);
+        Ok(LibraryEntry {
             id: id.clone(),
             file,
             cover,
@@ -331,7 +403,7 @@ impl S3Library {
             codec: info.codec.to_owned(),
             meta: TrackMeta {
                 source: "s3".into(),
-                id: id.clone(),
+                id,
                 title,
                 artists: info.artists,
                 album: info.album,
@@ -340,13 +412,127 @@ impl S3Library {
                 duration_ms: Some(info.duration_ms),
             },
             added_at: now_unix(),
-        };
+        })
+    }
 
-        let mut index = self.read_index().await?;
-        index.tracks.retain(|t| t.id != id);
-        index.tracks.push(entry.clone());
-        self.write_index(&index).await?;
-        Ok(entry)
+    /// Все объекты под префиксом: ключ и размер. Список отдаётся страницами.
+    async fn list_all(&self) -> Result<Vec<(String, u64)>> {
+        let mut out = Vec::new();
+        let mut token: Option<String> = None;
+        loop {
+            let mut list = self.bucket.list_objects_v2(Some(&self.creds));
+            list.with_prefix(self.prefix.as_str());
+            if let Some(t) = token.take() {
+                list.with_continuation_token(t);
+            }
+            let resp = self.http.get(list.sign(URL_TTL)).send().await?;
+            let status = resp.status();
+            let body = resp.text().await?;
+            if !status.is_success() {
+                return Err(s3_error("список", status, &body));
+            }
+            let page = ListObjectsV2::parse_response(&body)
+                .map_err(|e| Error::Unexpected(format!("S3: непонятный ответ на список: {e}")))?;
+            out.extend(page.contents.into_iter().map(|c| (c.key, c.size)));
+            match page.next_continuation_token {
+                Some(t) => token = Some(t),
+                None => return Ok(out),
+            }
+        }
+    }
+
+    /// Сверить индексы с тем, что реально лежит в бакете:
+    /// - записи, чьих файлов больше нет, убираются;
+    /// - mp3/flac, которых нет в индексах (положены вручную или запись
+    ///   потерялась), добавляются с метаданными из тегов. Файлы в
+    ///   `cache/<источник>/` попадают в кэш (id — из имени файла), остальные —
+    ///   в библиотеку.
+    pub async fn reindex(&self) -> Result<ReindexReport> {
+        let objects = self.list_all().await?;
+        let keys: HashSet<&str> = objects.iter().map(|(k, _)| k.as_str()).collect();
+        let cache_prefix = self.key("cache/");
+        let mut report = ReindexReport::default();
+
+        // Библиотека.
+        let mut lib = self.read_index().await?;
+        let before = lib.tracks.len();
+        lib.tracks.retain(|t| keys.contains(t.file.as_str()));
+        let mut changed = lib.tracks.len() != before;
+        report.removed += (before - lib.tracks.len()) as u32;
+        let known: HashSet<String> = lib.tracks.iter().map(|t| t.file.clone()).collect();
+        for (key, size) in &objects {
+            if key.starts_with(&cache_prefix) || known.contains(key) {
+                continue;
+            }
+            let Some(ext) = audio_ext(key) else { continue };
+            let Some(bytes) = self.get_bytes(key).await? else { continue };
+            let id = format!("{:x}", md5::compute(&bytes));
+            // Тот же файл уже есть в библиотеке под другим именем.
+            if lib.tracks.iter().any(|t| t.id == id) {
+                continue;
+            }
+            // Битые и непонятные файлы пропускаются.
+            let Ok(info) = info_from_bytes(bytes, ext).await else { continue };
+            let entry = self
+                .library_entry(id, key.clone(), *size, info, file_stem(key).to_owned())
+                .await?;
+            lib.tracks.push(entry);
+            report.added += 1;
+            changed = true;
+        }
+        if changed {
+            self.write_index(&lib).await?;
+        }
+
+        // Кэш.
+        let mut cache = self.read_cache_index().await?;
+        let before = cache.tracks.len();
+        cache.tracks.retain(|t| keys.contains(t.file.as_str()));
+        let mut changed = cache.tracks.len() != before;
+        report.removed += (before - cache.tracks.len()) as u32;
+        let known: HashSet<String> = cache.tracks.iter().map(|t| t.file.clone()).collect();
+        for (key, size) in &objects {
+            let Some(rel) = key.strip_prefix(&cache_prefix) else { continue };
+            if known.contains(key) {
+                continue;
+            }
+            let Some(ext) = audio_ext(key) else { continue };
+            let Some((source, name)) = rel.split_once('/') else { continue };
+            let Some(id) = id_from_file_name(name) else { continue };
+            if cache.tracks.iter().any(|t| t.id == id) {
+                continue;
+            }
+            let Some(bytes) = self.get_bytes(key).await? else { continue };
+            let Ok(info) = info_from_bytes(bytes, ext).await else { continue };
+            let title = info
+                .title
+                .filter(|t| !t.trim().is_empty())
+                .unwrap_or_else(|| file_stem(key).to_owned());
+            cache.tracks.push(CachedObject {
+                id: id.to_owned(),
+                file: key.clone(),
+                size: *size,
+                codec: info.codec.to_owned(),
+                bitrate_kbps: None,
+                meta: Some(TrackMeta {
+                    source: source.to_owned(),
+                    id: id.to_owned(),
+                    title,
+                    artists: info.artists,
+                    album: info.album,
+                    year: info.year,
+                    cover_url: None,
+                    duration_ms: Some(info.duration_ms),
+                }),
+                added_at: now_unix(),
+            });
+            report.added += 1;
+            changed = true;
+        }
+        if changed {
+            self.write_cache_index(&cache).await?;
+        }
+        Ok(report)
     }
 
     fn setting_key(&self, name: &str) -> Result<String> {
@@ -561,6 +747,68 @@ mod tests {
 
     /// Подключение к ещё не созданному бакету создаёт его. Запуск — как у
     /// `s3_roundtrip`.
+    #[test]
+    fn names_of_bucket_files() {
+        assert_eq!(id_from_file_name("КИНО — Кукушка (12345).mp3"), Some("12345"));
+        assert_eq!(id_from_file_name("12345.flac"), Some("12345"));
+        assert_eq!(id_from_file_name("Песня (live) (777).mp3"), Some("777"));
+        assert_eq!(id_from_file_name("Просто песня.mp3"), None);
+        assert_eq!(id_from_file_name("../x (..).mp3"), None);
+        assert_eq!(file_stem("moth-amp/Music/Альбом/01 Трек.flac"), "01 Трек");
+        assert_eq!(audio_ext("a/B.MP3"), Some("mp3"));
+        assert_eq!(audio_ext("a/folder.jpg"), None);
+    }
+
+    /// Сверка бакета с индексами на настоящем сервере (как `s3_roundtrip`).
+    #[tokio::test]
+    #[ignore]
+    async fn s3_reindex() {
+        let endpoint = std::env::var("MOTH_S3_TEST").expect("MOTH_S3_TEST");
+        let mut cfg = config(&endpoint);
+        cfg.access_key = "moth".into();
+        cfg.secret_key = "mothtest123".into();
+        cfg.region = "us-east-1".into();
+        cfg.bucket = format!("reindex-{}", now_unix());
+        let lib = S3Library::new(&cfg, reqwest::Client::new()).unwrap();
+        assert_eq!(lib.check().await.unwrap(), 0);
+
+        let dir = std::env::temp_dir().join(format!("moth-reindex-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("t.mp3");
+        std::fs::write(&path, crate::cache::tags::tests_support::tiny_mp3()).unwrap();
+        let meta = TrackMeta {
+            title: "Ручная".into(),
+            artists: vec!["Кто-то".into()],
+            ..Default::default()
+        };
+        tags::write_tags(&path, &meta, None).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+
+        // Файлы, положенные в бакет мимо приложения: свой трек и трек кэша.
+        lib.put_bytes(&lib.key("Music/Альбом/01.mp3"), bytes.clone(), "audio/mpeg")
+            .await
+            .unwrap();
+        lib.put_bytes(&lib.key("cache/yandex/Кто-то — Ручная (555).mp3"), bytes, "audio/mpeg")
+            .await
+            .unwrap();
+        // И запись в индексе, чей файл удалён.
+        let gone = lib.upload(&path).await.unwrap();
+        lib.delete_key(&gone.file).await.unwrap();
+
+        let r = lib.reindex().await.unwrap();
+        assert_eq!(r, ReindexReport { added: 2, removed: 1 });
+        let tracks = lib.tracks().await.unwrap();
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].meta.title, "Ручная");
+        assert!(tracks[0].file.ends_with("Music/Альбом/01.mp3"));
+        let cached = lib.cache_get("555").await.unwrap().unwrap();
+        assert_eq!(cached.meta.unwrap().source, "yandex");
+
+        // Повторная сверка ничего не меняет.
+        assert_eq!(lib.reindex().await.unwrap(), ReindexReport::default());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     #[ignore]
     async fn s3_creates_missing_bucket() {

@@ -6,7 +6,8 @@ import '../audio/eq_controller.dart';
 import '../src/rust/api/eq.dart';
 import 'errors.dart';
 
-String _formatFreq(double hz) {
+/// Частота для подписей: «125», «1k», «2.8k».
+String formatFreq(double hz) {
   if (hz >= 1000) {
     final k = hz / 1000;
     return '${k == k.roundToDouble() ? k.round() : k.toStringAsFixed(1)}k';
@@ -316,7 +317,7 @@ class _GraphicBands extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(_formatFreq(b.freqHz), style: labelStyle),
+                    Text(formatFreq(b.freqHz), style: labelStyle),
                   ],
                 ),
               );
@@ -455,7 +456,7 @@ class _BandEditor extends StatelessWidget {
                     _set(band.copyWith(freqHz: _pow10(v).roundToDouble())),
                 onChangeEnd: (_) => eq.commit(),
               ),
-              '${_formatFreq(band.freqHz)} Гц',
+              '${formatFreq(band.freqHz)} Гц',
             ),
             row(
               'Усиление',

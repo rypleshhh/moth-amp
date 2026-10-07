@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- audio_service находит значок уведомления по имени, сжатие ресурсов
+     в релизной сборке об этом не знает — сохраняем его явно. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_moth" />

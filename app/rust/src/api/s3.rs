@@ -36,9 +36,12 @@ pub struct S3UploadResultDto {
     pub failed: Vec<String>,
 }
 
+/// Короткий таймаут соединения: S3 часто стоит на домашнем NAS, и вне дома
+/// он недоступен — ждать системные десятки секунд перед каждым треком нельзя.
 fn http() -> Result<reqwest::Client> {
     Ok(reqwest::Client::builder()
         .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(std::time::Duration::from_secs(3))
         .build()?)
 }
 
@@ -159,14 +162,6 @@ pub async fn s3_upload(paths: Vec<String>) -> Result<S3UploadResultDto> {
             }
         }
         Ok(result)
-    })
-    .await
-}
-
-pub async fn s3_delete(track_id: String) -> Result<()> {
-    run(async move {
-        require()?.delete(&track_id).await?;
-        Ok(())
     })
     .await
 }

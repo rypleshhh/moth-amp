@@ -6,8 +6,8 @@
 use serde::{Deserialize, Deserializer};
 
 use crate::model::{
-    Account, AlbumRef, AlbumSummary, Artist, ArtistPage, ArtistSummary, Playlist, PlaylistKey,
-    SearchResults, Source, Track, TrackKey,
+    Account, AlbumRef, AlbumSummary, Artist, ArtistPage, ArtistSummary, Playlist, SearchResults,
+    Track,
 };
 
 #[derive(Deserialize)]
@@ -115,6 +115,18 @@ pub(crate) struct YAlbum {
     pub year: Option<u32>,
 }
 
+/// Исполнители без имени (бывают «various») пропускаются.
+fn artists(list: &[YArtist]) -> Vec<Artist> {
+    list.iter()
+        .filter_map(|a| {
+            Some(Artist {
+                id: a.id.clone(),
+                name: a.name.clone()?,
+            })
+        })
+        .collect()
+}
+
 /// `avatars.yandex.net/get-music-content/…/%%` → `https://…/400x400`.
 pub(crate) fn cover_url(uri: &str, size: &str) -> String {
     format!("https://{}", uri.replace("%%", size))
@@ -128,27 +140,14 @@ impl From<YTrack> for Track {
             year: a.year,
         });
         Track {
-            key: TrackKey {
-                source: Source::Yandex,
-                id: t.id,
-            },
+            artists: artists(&t.artists),
+            id: t.id,
             title: t.title.unwrap_or_default(),
             version: t.version,
-            artists: t
-                .artists
-                .into_iter()
-                .filter_map(|a| {
-                    Some(Artist {
-                        id: a.id,
-                        name: a.name?,
-                    })
-                })
-                .collect(),
             album,
             duration_ms: t.duration_ms,
             available: t.available.unwrap_or(true),
             cover_url: t.cover_uri.as_deref().map(|u| cover_url(u, "400x400")),
-            isrc: None,
         }
     }
 }
@@ -231,10 +230,7 @@ pub(crate) struct YPlaylistItem {
 impl YPlaylist {
     pub fn summary(&self) -> Playlist {
         Playlist {
-            key: PlaylistKey {
-                source: Source::Yandex,
-                id: self.kind.clone(),
-            },
+            id: self.kind.clone(),
             title: self.title.clone().unwrap_or_default(),
             track_count: self.track_count,
             cover_url: self
@@ -280,16 +276,7 @@ impl YAlbumInfo {
                 Some(v) if !v.is_empty() => format!("{title} ({v})"),
                 _ => title,
             },
-            artists: self
-                .artists
-                .iter()
-                .filter_map(|a| {
-                    Some(Artist {
-                        id: a.id.clone(),
-                        name: a.name.clone()?,
-                    })
-                })
-                .collect(),
+            artists: artists(&self.artists),
             year: self.year,
             cover_url: self.cover_uri.as_deref().map(|u| cover_url(u, "400x400")),
             track_count: self.track_count,
@@ -303,11 +290,6 @@ pub(crate) struct YLikedAlbum {
 }
 
 // ---- поиск ----
-
-#[derive(Deserialize)]
-pub(crate) struct SearchResult {
-    pub tracks: Option<Block<YTrack>>,
-}
 
 #[derive(Deserialize)]
 pub(crate) struct Block<T> {
@@ -463,7 +445,7 @@ mod tests {
             "coverUri": "avatars.yandex.net/get-music-content/1/2/%%"
         }"#;
         let t: Track = serde_json::from_str::<YTrack>(json).unwrap().into();
-        assert_eq!(t.key.id, "42");
+        assert_eq!(t.id, "42");
         assert_eq!(t.full_title(), "Song (Live)");
         assert_eq!(t.artist_line(), "Band");
         assert_eq!(t.album.as_ref().unwrap().id.as_deref(), Some("99"));

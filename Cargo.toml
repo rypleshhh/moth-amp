@@ -11,7 +11,6 @@ publish = false
 moth-core = { path = "crates/core" }
 
 anyhow = "1"
-async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }
 lofty = "0.25"
 rusty-s3 = "0.10"

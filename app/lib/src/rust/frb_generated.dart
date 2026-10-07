@@ -73,7 +73,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1349009599;
+  int get rustContentHash => -1261225551;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -138,8 +138,6 @@ abstract class RustLibApi extends BaseApi {
 
   EqSettingsDto crateApiEqEqFlat({required EqModeDto mode});
 
-  Future<EqStateDto> crateApiEqEqLoad({required String path});
-
   EqSettingsDto crateApiEqEqParseAutoeq({required String text});
 
   Float32List crateApiEqEqResponse({
@@ -184,30 +182,28 @@ abstract class RustLibApi extends BaseApi {
 
   Future<int> crateApiS3S3Connect({required S3ConfigDto config});
 
-  Future<void> crateApiS3S3Delete({required String trackId});
-
   Future<void> crateApiS3S3Disconnect();
 
   Future<S3StatusDto> crateApiS3S3Status();
+
+  Future<S3SyncDto> crateApiCacheS3Sync();
 
   Future<List<TrackDto>> crateApiS3S3Tracks();
 
   Future<S3UploadResultDto> crateApiS3S3Upload({required List<String> paths});
 
-  Future<List<TrackDto>> crateApiYandexSearch({required String query});
-
   Future<SearchDto> crateApiYandexSearchAll({required String query});
 
   Future<DeviceCodeDto> crateApiYandexStartLogin();
 
-  Future<StreamDto> crateApiYandexStreamUrl({
-    required String trackId,
-    required bool lowQuality,
-  });
-
   Future<List<TrackDto>> crateApiWaveWaveMore();
 
-  Future<List<TrackDto>> crateApiWaveWaveStart({required bool learning});
+  Future<WaveSettingsDto> crateApiWaveWaveSettings();
+
+  Future<List<TrackDto>> crateApiWaveWaveStart({
+    required bool learning,
+    required List<String> seeds,
+  });
 
   Future<void> crateApiWaveWaveStop();
 
@@ -841,41 +837,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "eq_flat", argNames: ["mode"]);
 
   @override
-  Future<EqStateDto> crateApiEqEqLoad({required String path}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 23,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_eq_state_dto,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiEqEqLoadConstMeta,
-        argValues: [path],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiEqEqLoadConstMeta =>
-      const TaskConstMeta(debugName: "eq_load", argNames: ["path"]);
-
-  @override
   EqSettingsDto crateApiEqEqParseAutoeq({required String text}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(text, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_eq_settings_dto,
@@ -902,7 +870,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
           sse_encode_u_32(points, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_prim_f_32_strict,
@@ -934,7 +902,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 25,
             port: port_,
           );
         },
@@ -962,7 +930,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 26,
             port: port_,
           );
         },
@@ -987,7 +955,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -1014,7 +982,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_eq_settings_dto(settings, serializer);
           sse_encode_eq_mode_dto(mode, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_eq_settings_dto,
@@ -1041,7 +1009,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1068,7 +1036,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1095,7 +1063,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1122,7 +1090,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1149,7 +1117,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1176,7 +1144,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1204,7 +1172,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1236,7 +1204,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1266,7 +1234,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1294,7 +1262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1313,34 +1281,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "s3_connect", argNames: ["config"]);
 
   @override
-  Future<void> crateApiS3S3Delete({required String trackId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(trackId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 40,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiS3S3DeleteConstMeta,
-        argValues: [trackId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiS3S3DeleteConstMeta =>
-      const TaskConstMeta(debugName: "s3_delete", argNames: ["trackId"]);
-
-  @override
   Future<void> crateApiS3S3Disconnect() {
     return handler.executeNormal(
       NormalTask(
@@ -1349,7 +1289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1376,7 +1316,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1395,6 +1335,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "s3_status", argNames: []);
 
   @override
+  Future<S3SyncDto> crateApiCacheS3Sync() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 41,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_s_3_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCacheS3SyncConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCacheS3SyncConstMeta =>
+      const TaskConstMeta(debugName: "s3_sync", argNames: []);
+
+  @override
   Future<List<TrackDto>> crateApiS3S3Tracks() {
     return handler.executeNormal(
       NormalTask(
@@ -1403,7 +1370,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1431,7 +1398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1450,34 +1417,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "s3_upload", argNames: ["paths"]);
 
   @override
-  Future<List<TrackDto>> crateApiYandexSearch({required String query}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(query, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 45,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_track_dto,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiYandexSearchConstMeta,
-        argValues: [query],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiYandexSearchConstMeta =>
-      const TaskConstMeta(debugName: "search", argNames: ["query"]);
-
-  @override
   Future<SearchDto> crateApiYandexSearchAll({required String query}) {
     return handler.executeNormal(
       NormalTask(
@@ -1487,7 +1426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1514,7 +1453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1533,40 +1472,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "start_login", argNames: []);
 
   @override
-  Future<StreamDto> crateApiYandexStreamUrl({
-    required String trackId,
-    required bool lowQuality,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(trackId, serializer);
-          sse_encode_bool(lowQuality, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 48,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_stream_dto,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiYandexStreamUrlConstMeta,
-        argValues: [trackId, lowQuality],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiYandexStreamUrlConstMeta => const TaskConstMeta(
-    debugName: "stream_url",
-    argNames: ["trackId", "lowQuality"],
-  );
-
-  @override
   Future<List<TrackDto>> crateApiWaveWaveMore() {
     return handler.executeNormal(
       NormalTask(
@@ -1575,7 +1480,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1594,16 +1499,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "wave_more", argNames: []);
 
   @override
-  Future<List<TrackDto>> crateApiWaveWaveStart({required bool learning}) {
+  Future<WaveSettingsDto> crateApiWaveWaveSettings() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_wave_settings_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWaveWaveSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWaveWaveSettingsConstMeta =>
+      const TaskConstMeta(debugName: "wave_settings", argNames: []);
+
+  @override
+  Future<List<TrackDto>> crateApiWaveWaveStart({
+    required bool learning,
+    required List<String> seeds,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(learning, serializer);
+          sse_encode_list_String(seeds, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1612,14 +1548,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiWaveWaveStartConstMeta,
-        argValues: [learning],
+        argValues: [learning, seeds],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWaveWaveStartConstMeta =>
-      const TaskConstMeta(debugName: "wave_start", argNames: ["learning"]);
+  TaskConstMeta get kCrateApiWaveWaveStartConstMeta => const TaskConstMeta(
+    debugName: "wave_start",
+    argNames: ["learning", "seeds"],
+  );
 
   @override
   Future<void> crateApiWaveWaveStop() {
@@ -1630,7 +1568,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1664,7 +1602,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1694,7 +1632,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1731,12 +1669,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AccountDto dco_decode_account_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return AccountDto(
-      uid: dco_decode_String(arr[0]),
-      name: dco_decode_String(arr[1]),
-      hasPlus: dco_decode_bool(arr[2]),
+      name: dco_decode_String(arr[0]),
+      hasPlus: dco_decode_bool(arr[1]),
     );
   }
 
@@ -1986,6 +1923,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WaveGroupDto> dco_decode_list_wave_group_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_wave_group_dto).toList();
+  }
+
+  @protected
+  List<WaveOptionDto> dco_decode_list_wave_option_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_wave_option_dto).toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -2060,6 +2009,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  S3SyncDto dco_decode_s_3_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return S3SyncDto(
+      uploaded: dco_decode_u_32(arr[0]),
+      found: dco_decode_u_32(arr[1]),
+      removed: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
   S3UploadResultDto dco_decode_s_3_upload_result_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2083,20 +2045,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albums: dco_decode_list_album_dto(arr[2]),
       playlists: dco_decode_list_playlist_dto(arr[3]),
       tracks: dco_decode_list_track_dto(arr[4]),
-    );
-  }
-
-  @protected
-  StreamDto dco_decode_stream_dto(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return StreamDto(
-      url: dco_decode_String(arr[0]),
-      codec: dco_decode_String(arr[1]),
-      bitrateKbps: dco_decode_opt_box_autoadd_u_32(arr[2]),
-      isPreview: dco_decode_bool(arr[3]),
     );
   }
 
@@ -2139,6 +2087,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveGroupDto dco_decode_wave_group_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WaveGroupDto(
+      name: dco_decode_String(arr[0]),
+      options: dco_decode_list_wave_option_dto(arr[1]),
+    );
+  }
+
+  @protected
+  WaveOptionDto dco_decode_wave_option_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WaveOptionDto(
+      name: dco_decode_String(arr[0]),
+      seed: dco_decode_String(arr[1]),
+      isDefault: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  WaveSettingsDto dco_decode_wave_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WaveSettingsDto(
+      activities: dco_decode_list_wave_option_dto(arr[0]),
+      groups: dco_decode_list_wave_group_dto(arr[1]),
+    );
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -2155,10 +2140,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   AccountDto sse_decode_account_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_uid = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
     var var_hasPlus = sse_decode_bool(deserializer);
-    return AccountDto(uid: var_uid, name: var_name, hasPlus: var_hasPlus);
+    return AccountDto(name: var_name, hasPlus: var_hasPlus);
   }
 
   @protected
@@ -2457,6 +2441,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WaveGroupDto> sse_decode_list_wave_group_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WaveGroupDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wave_group_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WaveOptionDto> sse_decode_list_wave_option_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WaveOptionDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wave_option_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2551,6 +2563,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  S3SyncDto sse_decode_s_3_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_uploaded = sse_decode_u_32(deserializer);
+    var var_found = sse_decode_u_32(deserializer);
+    var var_removed = sse_decode_u_32(deserializer);
+    return S3SyncDto(
+      uploaded: var_uploaded,
+      found: var_found,
+      removed: var_removed,
+    );
+  }
+
+  @protected
   S3UploadResultDto sse_decode_s_3_upload_result_dto(
     SseDeserializer deserializer,
   ) {
@@ -2574,21 +2599,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albums: var_albums,
       playlists: var_playlists,
       tracks: var_tracks,
-    );
-  }
-
-  @protected
-  StreamDto sse_decode_stream_dto(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_url = sse_decode_String(deserializer);
-    var var_codec = sse_decode_String(deserializer);
-    var var_bitrateKbps = sse_decode_opt_box_autoadd_u_32(deserializer);
-    var var_isPreview = sse_decode_bool(deserializer);
-    return StreamDto(
-      url: var_url,
-      codec: var_codec,
-      bitrateKbps: var_bitrateKbps,
-      isPreview: var_isPreview,
     );
   }
 
@@ -2637,6 +2647,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveGroupDto sse_decode_wave_group_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_options = sse_decode_list_wave_option_dto(deserializer);
+    return WaveGroupDto(name: var_name, options: var_options);
+  }
+
+  @protected
+  WaveOptionDto sse_decode_wave_option_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_seed = sse_decode_String(deserializer);
+    var var_isDefault = sse_decode_bool(deserializer);
+    return WaveOptionDto(
+      name: var_name,
+      seed: var_seed,
+      isDefault: var_isDefault,
+    );
+  }
+
+  @protected
+  WaveSettingsDto sse_decode_wave_settings_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_activities = sse_decode_list_wave_option_dto(deserializer);
+    var var_groups = sse_decode_list_wave_group_dto(deserializer);
+    return WaveSettingsDto(activities: var_activities, groups: var_groups);
+  }
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -2654,7 +2693,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_account_dto(AccountDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.uid, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_bool(self.hasPlus, serializer);
   }
@@ -2934,6 +2972,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_wave_group_dto(
+    List<WaveGroupDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wave_group_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_wave_option_dto(
+    List<WaveOptionDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wave_option_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2999,6 +3061,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_s_3_sync_dto(S3SyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.uploaded, serializer);
+    sse_encode_u_32(self.found, serializer);
+    sse_encode_u_32(self.removed, serializer);
+  }
+
+  @protected
   void sse_encode_s_3_upload_result_dto(
     S3UploadResultDto self,
     SseSerializer serializer,
@@ -3016,15 +3086,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_album_dto(self.albums, serializer);
     sse_encode_list_playlist_dto(self.playlists, serializer);
     sse_encode_list_track_dto(self.tracks, serializer);
-  }
-
-  @protected
-  void sse_encode_stream_dto(StreamDto self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.url, serializer);
-    sse_encode_String(self.codec, serializer);
-    sse_encode_opt_box_autoadd_u_32(self.bitrateKbps, serializer);
-    sse_encode_bool(self.isPreview, serializer);
   }
 
   @protected
@@ -3057,5 +3118,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_wave_group_dto(WaveGroupDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_list_wave_option_dto(self.options, serializer);
+  }
+
+  @protected
+  void sse_encode_wave_option_dto(
+    WaveOptionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.seed, serializer);
+    sse_encode_bool(self.isDefault, serializer);
+  }
+
+  @protected
+  void sse_encode_wave_settings_dto(
+    WaveSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_wave_option_dto(self.activities, serializer);
+    sse_encode_list_wave_group_dto(self.groups, serializer);
   }
 }

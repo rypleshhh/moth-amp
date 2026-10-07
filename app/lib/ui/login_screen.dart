@@ -28,12 +28,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final code = await startLogin();
+      if (!mounted) return;
       setState(() => _code = code);
       await launchUrl(Uri.parse(code.verificationUrl));
       await finishLogin();
       widget.onLoggedIn();
     } catch (e) {
-      setState(() => _error = errorText(e));
+      if (mounted) {
+        setState(() {
+          _error = errorText(e);
+          _code = null;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

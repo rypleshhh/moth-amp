@@ -1,16 +1,16 @@
 //! Кэш аудио и локальный прокси для Flutter.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
 use moth_core::cache::proxy::{fetch_cover, CommitHook, Proxy, ResolvedTrack, Resolver};
 use moth_core::cache::Cache;
 use moth_core::model::{Quality, StreamInfo, TrackMeta};
-use moth_core::provider::Provider;
 
-use super::yandex::{provider, run, TrackDto};
+use super::yandex::{http, provider, run, TrackDto};
 
 struct CacheState {
     cache: Arc<Cache>,
@@ -54,11 +54,27 @@ async fn mirror_one(id: &str) -> Result<bool> {
     Ok(true)
 }
 
+/// До какого момента не обращаться к S3 после сбоя связи.
+static S3_DOWN_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Пауза после сбоя: вне дома NAS недоступен, и без неё каждый трек
+/// ждал бы таймаута соединения, прежде чем пойти к Яндексу.
+const S3_RETRY_AFTER: Duration = Duration::from_secs(60);
+
 /// Трек Яндекса из кэша в S3, если он там есть и подписка подтверждена.
 async fn s3_cached_stream(id: &str) -> Option<(StreamInfo, Option<TrackMeta>)> {
     let state = STATE.get()?;
     let lib = super::s3::library().ok()??;
-    let obj = lib.cache_get(id).await.ok()??;
+    if S3_DOWN_UNTIL.lock().unwrap().is_some_and(|t| Instant::now() < t) {
+        return None;
+    }
+    let obj = match lib.cache_get(id).await {
+        Ok(obj) => obj?,
+        Err(_) => {
+            *S3_DOWN_UNTIL.lock().unwrap() = Some(Instant::now() + S3_RETRY_AFTER);
+            return None;
+        }
+    };
     if obj.needs_plus() && !state.cache.playback_allowed() {
         return None;
     }
@@ -142,10 +158,7 @@ pub async fn cache_init(dir: String, default_limit_mb: u32) -> Result<()> {
                 Ok(ResolvedTrack { stream, meta })
             })
         });
-        let http = reqwest::Client::builder()
-            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
-            .build()?;
-        let proxy = Proxy::start(cache.clone(), resolver, http).await?;
+        let proxy = Proxy::start(cache.clone(), resolver, http()).await?;
         let hook: CommitHook = Arc::new(|id: String| {
             tokio::spawn(async move {
                 let _ = mirror_one(&id).await;
@@ -288,19 +301,50 @@ pub(crate) fn forget_plus() {
 /// Скопировать в S3 треки локального кэша, которых там ещё нет.
 /// Возвращает число скопированных. Без подключённого S3 — 0.
 pub async fn cache_mirror_to_s3() -> Result<u32> {
-    run(async {
-        let state = state()?;
-        let Some(lib) = super::s3::library()? else {
-            return Ok(0);
-        };
-        let remote: Vec<String> = lib.cache_list().await?.into_iter().map(|o| o.id).collect();
-        let mut done = 0;
-        for id in state.cache.cached_ids() {
-            if !remote.contains(&id) && mirror_one(&id).await? {
-                done += 1;
-            }
+    run(mirror_missing()).await
+}
+
+async fn mirror_missing() -> Result<u32> {
+    let state = state()?;
+    let Some(lib) = super::s3::library()? else {
+        return Ok(0);
+    };
+    let remote: HashSet<String> = lib.cache_list().await?.into_iter().map(|o| o.id).collect();
+    let mut done = 0;
+    for id in state.cache.cached_ids() {
+        if !remote.contains(&id) && mirror_one(&id).await? {
+            done += 1;
         }
-        Ok(done)
+    }
+    Ok(done)
+}
+
+/// Итог синхронизации с S3.
+pub struct S3SyncDto {
+    /// Загружено в S3 с этого устройства.
+    pub uploaded: u32,
+    /// Найдено в бакете файлов, которых не было в списках
+    /// (положены вручную или запись потерялась).
+    pub found: u32,
+    /// Убрано записей, чьих файлов в бакете больше нет.
+    pub removed: u32,
+}
+
+/// «Синхронизировать»: сверить списки с тем, что лежит в бакете, затем
+/// загрузить в S3 скачанное на этом устройстве, чего там ещё нет.
+pub async fn s3_sync() -> Result<S3SyncDto> {
+    run(async {
+        let lib = super::s3::library()?.ok_or_else(|| anyhow!("S3 не подключено"))?;
+        let report = {
+            let _guard = MIRROR_LOCK.lock().await;
+            lib.reindex().await?
+        };
+        let uploaded = mirror_missing().await?;
+        Ok(S3SyncDto {
+            uploaded,
+            found: report.added,
+            removed: report.removed,
+        })
     })
     .await
 }
@@ -315,14 +359,12 @@ pub async fn cache_backfill_meta() -> Result<u32> {
             return Ok(0);
         }
         let tracks = provider()?.api().tracks(&ids).await?;
-        let http = reqwest::Client::builder()
-            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
-            .build()?;
+        let http = http();
         let mut done = 0;
         for t in tracks {
             let meta = TrackMeta::from_track(&t);
             let cover = fetch_cover(&http, &meta).await;
-            state.cache.attach_meta(&t.key.id, meta, cover.as_deref())?;
+            state.cache.attach_meta(&t.id, meta, cover.as_deref())?;
             done += 1;
         }
         Ok(done)
@@ -345,8 +387,9 @@ pub async fn cached_tracks() -> Result<Vec<TrackDto>> {
         if let Ok(Some(lib)) = super::s3::library() {
             if let Ok(remote) = lib.cache_list().await {
                 let plus_ok = state.cache.playback_allowed();
+                let local: HashSet<String> = list.iter().map(|t| t.id.clone()).collect();
                 for obj in remote {
-                    if (plus_ok || !obj.needs_plus()) && !list.iter().any(|t| t.id == obj.id) {
+                    if (plus_ok || !obj.needs_plus()) && !local.contains(&obj.id) {
                         list.push(track_from_meta(obj.id, obj.meta));
                     }
                 }
@@ -385,14 +428,11 @@ fn track_from_meta(id: String, meta: Option<TrackMeta>) -> TrackDto {
 pub async fn cache_place_folder_cover(folder: String, cover_url: String) -> Result<()> {
     run(async move {
         let state = state()?;
-        let http = reqwest::Client::builder()
-            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
-            .build()?;
         let meta = TrackMeta {
             cover_url: Some(cover_url),
             ..Default::default()
         };
-        let jpeg = fetch_cover(&http, &meta)
+        let jpeg = fetch_cover(&http(), &meta)
             .await
             .ok_or_else(|| anyhow!("не удалось скачать обложку"))?;
         state.cache.set_folder_cover(&folder, &jpeg)?;

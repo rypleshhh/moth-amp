@@ -9,11 +9,21 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'yandex.dart';
 
-// These functions are ignored because they are not marked as `pub`: `reset`
+// These functions are ignored because they are not marked as `pub`: `option_dto`, `reset`
+
+/// Варианты настроек волны (названия — от Яндекса).
+Future<WaveSettingsDto> waveSettings() =>
+    RustLib.instance.api.crateApiWaveWaveSettings();
 
 /// Запустить волну. `learning = false` — тихий режим: incognito, отчёты не отправляются.
-Future<List<TrackDto>> waveStart({required bool learning}) =>
-    RustLib.instance.api.crateApiWaveWaveStart(learning: learning);
+/// `seeds` — настройки (занятие, настроение…); пустой список — обычная волна.
+Future<List<TrackDto>> waveStart({
+  required bool learning,
+  required List<String> seeds,
+}) => RustLib.instance.api.crateApiWaveWaveStart(
+  learning: learning,
+  seeds: seeds,
+);
 
 /// Следующая партия треков текущей волны.
 Future<List<TrackDto>> waveMore() =>
@@ -34,3 +44,69 @@ Future<void> waveTrackEnded({
 );
 
 Future<void> waveStop() => RustLib.instance.api.crateApiWaveWaveStop();
+
+class WaveGroupDto {
+  final String name;
+  final List<WaveOptionDto> options;
+
+  const WaveGroupDto({required this.name, required this.options});
+
+  @override
+  int get hashCode => name.hashCode ^ options.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveGroupDto &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          options == other.options;
+}
+
+/// Вариант настройки волны.
+class WaveOptionDto {
+  final String name;
+
+  /// Зерно для `wave_start`.
+  final String seed;
+
+  /// Вариант «любое».
+  final bool isDefault;
+
+  const WaveOptionDto({
+    required this.name,
+    required this.seed,
+    required this.isDefault,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ seed.hashCode ^ isDefault.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveOptionDto &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          seed == other.seed &&
+          isDefault == other.isDefault;
+}
+
+/// Что можно настроить в волне: занятия и группы (настроение, характер, язык).
+class WaveSettingsDto {
+  final List<WaveOptionDto> activities;
+  final List<WaveGroupDto> groups;
+
+  const WaveSettingsDto({required this.activities, required this.groups});
+
+  @override
+  int get hashCode => activities.hashCode ^ groups.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveSettingsDto &&
+          runtimeType == other.runtimeType &&
+          activities == other.activities &&
+          groups == other.groups;
+}

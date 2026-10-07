@@ -1,22 +1,6 @@
-//! Модели, общие для всех источников музыки.
+//! Модели ядра: треки, плейлисты, альбомы, исполнители, поток.
 
 use serde::{Deserialize, Serialize};
-
-/// Откуда пришли данные о треке или плейлисте.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Source {
-    Yandex,
-    Subsonic,
-    Local,
-}
-
-/// Уникальный ключ трека: источник + идентификатор внутри источника.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TrackKey {
-    pub source: Source,
-    pub id: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Artist {
@@ -31,9 +15,19 @@ pub struct AlbumRef {
     pub year: Option<u32>,
 }
 
+/// Исполнители через запятую.
+fn names(artists: &[Artist]) -> String {
+    artists
+        .iter()
+        .map(|a| a.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Трек Яндекса.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Track {
-    pub key: TrackKey,
+    pub id: String,
     pub title: String,
     /// Подзаголовок версии: «Remastered», «Live» и т.п.
     pub version: Option<String>,
@@ -43,7 +37,6 @@ pub struct Track {
     /// `false`, если источник сообщает, что трек недоступен (удалён, регион и т.п.).
     pub available: bool,
     pub cover_url: Option<String>,
-    pub isrc: Option<String>,
 }
 
 impl Track {
@@ -56,23 +49,14 @@ impl Track {
     }
 
     pub fn artist_line(&self) -> String {
-        self.artists
-            .iter()
-            .map(|a| a.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
+        names(&self.artists)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PlaylistKey {
-    pub source: Source,
-    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playlist {
-    pub key: PlaylistKey,
+    /// `kind` плейлиста у владельца.
+    pub id: String,
     pub title: String,
     pub track_count: Option<u32>,
     pub cover_url: Option<String>,
@@ -122,11 +106,7 @@ pub struct AlbumSummary {
 
 impl AlbumSummary {
     pub fn artist_line(&self) -> String {
-        self.artists
-            .iter()
-            .map(|a| a.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
+        names(&self.artists)
     }
 
     /// Имя папки для скачанного альбома: «Исполнитель — Альбом (год)».
@@ -150,10 +130,8 @@ impl AlbumSummary {
 pub enum Quality {
     /// Экономия трафика (мобильная сеть).
     Low,
-    /// Лучший lossy-вариант (mp3 320).
+    /// Лучший доступный вариант (mp3 320).
     High,
-    /// FLAC, если доступен; иначе лучший lossy.
-    Lossless,
 }
 
 /// Готовая ссылка на аудиопоток.
@@ -170,7 +148,7 @@ pub struct StreamInfo {
 /// Тот же набор полей читается из собственных mp3/flac пользователя.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TrackMeta {
-    /// Источник: `yandex`, `local`, …
+    /// Источник: `yandex` или `s3` (своя музыка).
     pub source: String,
     pub id: String,
     pub title: String,
@@ -183,14 +161,9 @@ pub struct TrackMeta {
 
 impl TrackMeta {
     pub fn from_track(t: &Track) -> Self {
-        let source = match t.key.source {
-            Source::Yandex => "yandex",
-            Source::Subsonic => "subsonic",
-            Source::Local => "local",
-        };
         Self {
-            source: source.into(),
-            id: t.key.id.clone(),
+            source: "yandex".into(),
+            id: t.id.clone(),
             title: t.full_title(),
             artists: t.artists.iter().map(|a| a.name.clone()).collect(),
             album: t.album.as_ref().map(|a| a.title.clone()),

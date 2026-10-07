@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../audio/eq_controller.dart';
 import '../player/player_controller.dart';
 import 'equalizer_screen.dart';
+import 'track_cover.dart';
 import 'track_list.dart';
 
 class PlayerBar extends StatelessWidget {
@@ -36,7 +37,7 @@ class PlayerBar extends StatelessWidget {
                       Expanded(
                         child: Row(
                           children: [
-                            _Cover(url: track?.coverUrl),
+                            TrackCover(url: track?.coverUrl, size: 44),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -116,35 +117,6 @@ class PlayerBar extends StatelessWidget {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _Cover extends StatelessWidget {
-  const _Cover({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 44.0;
-    final placeholder = Container(
-      width: size,
-      height: size,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: const Icon(Icons.music_note),
-    );
-    final u = url;
-    if (u == null) return placeholder;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: Image.network(
-        u,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => placeholder,
       ),
     );
   }

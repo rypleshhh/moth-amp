@@ -1,8 +1,13 @@
-//! Кэш аудио: обычные mp3/flac-файлы в папке приложения, LRU по объёму,
-//! привязка к подписке.
+//! Кэш аудио: обычные mp3/flac-файлы с тегами, лимит по объёму, привязка
+//! к подписке.
 //!
-//! Файлы: `<dir>/tracks/<id>.<ext>`, недокачанные — `<dir>/tracks/<id>.part`,
-//! индекс — `<dir>/index.json`.
+//! Файлы: `<папка треков>/Исполнитель — Название (id).mp3` (по умолчанию
+//! папка треков — `<dir>/tracks`), копии в папках плейлистов —
+//! `<папка треков>/<Плейлист>/…`, недокачанные — `*.part`, индекс —
+//! `<dir>/index.json`.
+//!
+//! При переполнении удаляются давно не игравшие треки, но не скачанные
+//! вручную: их пользователь просил сохранить.
 //!
 //! Кэш Яндекса играет, только если Плюс был подтверждён не раньше
 //! [`OFFLINE_GRACE_SECS`] назад; при выходе из аккаунта отметка о подписке
@@ -37,7 +42,8 @@ pub struct Entry {
     /// Метаданные (они же вшиты в теги файла).
     #[serde(default)]
     pub meta: Option<TrackMeta>,
-    /// Скачан вручную (иконкой загрузки), а не просто прослушан.
+    /// Скачан вручную (иконкой или с плейлистом), а не просто прослушан:
+    /// по лимиту не удаляется.
     #[serde(default)]
     pub pinned: bool,
     /// Дополнительные копии в папках плейлистов (`Плейлист/имя.mp3`):
@@ -390,6 +396,16 @@ impl Cache {
         self.index.lock().unwrap().entries.contains_key(track_id)
     }
 
+    /// Отметить трек как скачанный вручную (уже лежавший в кэше после
+    /// прослушивания): теперь его не удалит лимит.
+    pub fn pin(&self, track_id: &str) -> Result<()> {
+        match self.index.lock().unwrap().entries.get_mut(track_id) {
+            Some(entry) if !entry.pinned => entry.pinned = true,
+            _ => return Ok(()),
+        }
+        self.save()
+    }
+
     /// Куда писать недокачанный файл.
     pub fn part_path(&self, track_id: &str) -> PathBuf {
         self.tracks_dir().join(format!("{track_id}.part"))
@@ -428,7 +444,8 @@ impl Cache {
     }
 
     /// Удалять самые давно игравшие треки, пока объём не уложится в лимит.
-    /// `keep` — трек, который нельзя удалять (например, только что добавленный).
+    /// Скачанные вручную не трогаются. `keep` — трек, который нельзя удалять
+    /// (например, только что добавленный).
     fn evict(&self, keep: Option<&str>) {
         let mut index = self.index.lock().unwrap();
         let mut used: u64 = index.entries.values().map(|e| e.size).sum();
@@ -438,7 +455,7 @@ impl Cache {
         let mut by_age: Vec<(String, u64, u64)> = index
             .entries
             .iter()
-            .filter(|(id, _)| Some(id.as_str()) != keep)
+            .filter(|(id, e)| !e.pinned && Some(id.as_str()) != keep)
             .map(|(id, e)| (id.clone(), e.last_access, e.size))
             .collect();
         by_age.sort_by_key(|(_, at, _)| *at);
@@ -594,8 +611,11 @@ impl Cache {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| entry.file.clone());
         let rel = format!("{sub}/{name}");
+        // Трек из скачанного плейлиста — тоже скачан вручную.
+        entry.pinned = true;
         if entry.file == rel || entry.links.contains(&rel) {
-            return Ok(());
+            drop(index);
+            return self.save();
         }
         let from = root.join(&entry.file);
         let to = root.join(&rel);
@@ -689,6 +709,27 @@ mod tests {
         assert!(cache.contains("c"));
         assert!(!dir.0.join("tracks").join("b.mp3").exists());
         assert_eq!(cache.stats().used_bytes, 20);
+    }
+
+    #[test]
+    fn pinned_tracks_are_not_evicted() {
+        let dir = TempDir::new("pinned");
+        let cache = Cache::open(&dir.0, 25).unwrap();
+        add(&cache, "old", 10);
+        add(&cache, "liked", 10);
+        // «old» и «liked» самые давние, но «liked» скачан вручную.
+        cache.pin("liked").unwrap();
+        add(&cache, "c", 10);
+        assert!(!cache.contains("old"));
+        assert!(cache.contains("liked"));
+        assert!(cache.contains("c"));
+
+        // Плейлист в папке тоже закрепляет трек.
+        add(&cache, "d", 10);
+        cache.place_in_folder("d", "Плейлист").unwrap();
+        add(&cache, "e", 10);
+        assert!(cache.contains("d"), "трек плейлиста не вытесняется");
+        assert!(!cache.contains("c"));
     }
 
     #[test]

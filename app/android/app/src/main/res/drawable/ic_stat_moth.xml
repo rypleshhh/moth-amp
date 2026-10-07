@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Значок в строке уведомлений: знак moth-amp для мелких размеров
+     (design/logo/kit/moth-amp-symbol-small.svg). Android рисует его только
+     по прозрачности, поэтому цвет — сплошной белый. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+    <path
+        android:pathData="M52,214V132A38,38 0,0 1,128 132V214M128,132A38,38 0,0 1,204 132V214"
+        android:strokeWidth="34"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M128,96L106,57.9M128,96L150,57.9"
+        android:strokeWidth="18"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

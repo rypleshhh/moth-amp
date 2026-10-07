@@ -71,20 +71,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           actions: [
-            FutureBuilder<AccountDto>(
-              future: account(),
-              builder: (context, snap) {
-                final acc = snap.data;
-                if (acc == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(
-                    '${acc.name.toLowerCase()}${acc.hasPlus ? ' · плюс' : ''}',
-                    style: Moth.label,
-                  ),
-                );
-              },
-            ),
+            const _AccountLabel(),
             Builder(
               builder: (context) => IconButton(
                 tooltip: 'Кэш',
@@ -127,6 +114,37 @@ class HomeScreen extends StatelessWidget {
         // На широком окне управление в деке слева.
         bottomNavigationBar: wide ? null : PlayerBar(player: player, eq: eq),
       ),
+    );
+  }
+}
+
+/// Имя и Плюс в шапке. Запрос — один раз: экран перестраивается при каждом
+/// изменении загрузок, и вызов в build дёргал бы сеть и индекс кэша.
+class _AccountLabel extends StatefulWidget {
+  const _AccountLabel();
+
+  @override
+  State<_AccountLabel> createState() => _AccountLabelState();
+}
+
+class _AccountLabelState extends State<_AccountLabel> {
+  final _account = account();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<AccountDto>(
+      future: _account,
+      builder: (context, snap) {
+        final acc = snap.data;
+        if (acc == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Text(
+            '${acc.name.toLowerCase()}${acc.hasPlus ? ' · плюс' : ''}',
+            style: Moth.label,
+          ),
+        );
+      },
     );
   }
 }

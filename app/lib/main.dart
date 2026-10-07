@@ -23,9 +23,8 @@ Future<void> main() async {
   final dataDir = await getApplicationSupportDirectory();
   await appInit(dataDir: dataDir.path);
   try {
-    final dir = dataDir;
     await cacheInit(
-      dir: '${dir.path}${Platform.pathSeparator}cache',
+      dir: '${dataDir.path}${Platform.pathSeparator}cache',
       defaultLimitMb: 2048,
     );
   } catch (e) {

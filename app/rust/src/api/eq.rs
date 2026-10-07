@@ -165,21 +165,19 @@ fn state_to(store: EqStore) -> EqStateDto {
     }
 }
 
-pub fn eq_load(path: String) -> Result<EqStateDto> {
-    Ok(state_to(dsp::load_store(Path::new(&path))?))
-}
-
 /// Настройки с учётом S3: берётся более свежая копия (локальная или из
-/// бакета), и она же записывается на другую сторону. Без S3 — только локально.
+/// бакета), и она же записывается на другую сторону. Без S3 или когда он
+/// недоступен (NAS вне дома) — локальные настройки.
 pub async fn eq_sync(path: String) -> Result<EqStateDto> {
     super::yandex::run(async move {
         let local = dsp::load_store(Path::new(&path))?;
-        let Some(lib) = super::s3::library()? else {
+        let Ok(Some(lib)) = super::s3::library() else {
             return Ok(state_to(local));
         };
-        let remote: Option<EqStore> = match lib.get_setting(EQ_SETTING).await? {
-            Some(bytes) => serde_json::from_slice(&bytes).ok(),
-            None => None,
+        let remote: Option<EqStore> = match lib.get_setting(EQ_SETTING).await {
+            Ok(Some(bytes)) => serde_json::from_slice(&bytes).ok(),
+            Ok(None) => None,
+            Err(_) => return Ok(state_to(local)),
         };
         let store = match remote {
             Some(remote) if remote.updated_at > local.updated_at => {
@@ -188,8 +186,9 @@ pub async fn eq_sync(path: String) -> Result<EqStateDto> {
             }
             _ => {
                 if local.updated_at > 0 {
-                    lib.put_setting(EQ_SETTING, serde_json::to_vec_pretty(&local)?)
-                        .await?;
+                    if let Ok(json) = serde_json::to_vec_pretty(&local) {
+                        let _ = lib.put_setting(EQ_SETTING, json).await;
+                    }
                 }
                 local
             }

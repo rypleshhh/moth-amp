@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `account_dto`, `album_dto`, `artist_dto`, `playlist_dto`, `provider`, `reset_provider`, `run`, `secrets`, `stream_dto`, `track_dto`, `track_dtos`
+// These functions are ignored because they are not marked as `pub`: `account_dto`, `album_dto`, `artist_dto`, `http`, `playlist_dto`, `provider`, `reset_provider`, `run`, `secrets`, `track_dto`, `track_dtos`
 
 /// Вызывается первым при запуске. `data_dir` — приватная папка приложения:
 /// на Android секреты лежат в ней, на десктопе — в системном хранилище.
@@ -61,37 +61,20 @@ Future<List<AlbumDto>> likedAlbums() =>
 Future<List<TrackDto>> albumTracks({required String id}) =>
     RustLib.instance.api.crateApiYandexAlbumTracks(id: id);
 
-Future<List<TrackDto>> search({required String query}) =>
-    RustLib.instance.api.crateApiYandexSearch(query: query);
-
-Future<StreamDto> streamUrl({
-  required String trackId,
-  required bool lowQuality,
-}) => RustLib.instance.api.crateApiYandexStreamUrl(
-  trackId: trackId,
-  lowQuality: lowQuality,
-);
-
 class AccountDto {
-  final String uid;
   final String name;
   final bool hasPlus;
 
-  const AccountDto({
-    required this.uid,
-    required this.name,
-    required this.hasPlus,
-  });
+  const AccountDto({required this.name, required this.hasPlus});
 
   @override
-  int get hashCode => uid.hashCode ^ name.hashCode ^ hasPlus.hashCode;
+  int get hashCode => name.hashCode ^ hasPlus.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AccountDto &&
           runtimeType == other.runtimeType &&
-          uid == other.uid &&
           name == other.name &&
           hasPlus == other.hasPlus;
 }
@@ -292,34 +275,6 @@ class SearchDto {
           albums == other.albums &&
           playlists == other.playlists &&
           tracks == other.tracks;
-}
-
-class StreamDto {
-  final String url;
-  final String codec;
-  final int? bitrateKbps;
-  final bool isPreview;
-
-  const StreamDto({
-    required this.url,
-    required this.codec,
-    this.bitrateKbps,
-    required this.isPreview,
-  });
-
-  @override
-  int get hashCode =>
-      url.hashCode ^ codec.hashCode ^ bitrateKbps.hashCode ^ isPreview.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StreamDto &&
-          runtimeType == other.runtimeType &&
-          url == other.url &&
-          codec == other.codec &&
-          bitrateKbps == other.bitrateKbps &&
-          isPreview == other.isPreview;
 }
 
 class TrackDto {

@@ -8,10 +8,9 @@ use std::sync::{Arc, LazyLock, Mutex, RwLock};
 
 use anyhow::{anyhow, Result};
 use moth_core::auth::TokenStore;
-use moth_core::model::{Account, Playlist, Quality, StreamInfo, Track};
-use moth_core::provider::Provider;
+use moth_core::model::{Account, AlbumSummary, ArtistSummary, Playlist, Track};
 use moth_core::secrets::{SecretStore, SecretTokenStore};
-use moth_core::yandex::{ApiClient, DeviceCode, YandexConfig, YandexProvider};
+use moth_core::yandex::{ApiClient, DeviceCode, YandexProvider};
 
 static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -37,10 +36,7 @@ pub(crate) fn provider() -> Result<Arc<YandexProvider>> {
         return Ok(p.clone());
     }
     let store: Arc<dyn TokenStore> = Arc::new(SecretTokenStore::new(secrets()?, "yandex"));
-    let p = Arc::new(YandexProvider::new(ApiClient::new(
-        YandexConfig::default(),
-        store,
-    )?));
+    let p = Arc::new(YandexProvider::new(ApiClient::new(store)?));
     *slot = Some(p.clone());
     Ok(p)
 }
@@ -75,6 +71,18 @@ fn reset_provider() {
     *PROVIDER.write().unwrap() = None;
 }
 
+/// HTTP-клиент для потоков и обложек (у API Яндекса и S3 — свои).
+pub(crate) fn http() -> reqwest::Client {
+    static HTTP: LazyLock<reqwest::Client> = LazyLock::new(|| {
+        reqwest::Client::builder()
+            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()
+            .expect("не удалось создать HTTP-клиент")
+    });
+    HTTP.clone()
+}
+
 pub(crate) async fn run<T, F>(fut: F) -> Result<T>
 where
     T: Send + 'static,
@@ -96,7 +104,6 @@ pub struct DeviceCodeDto {
 }
 
 pub struct AccountDto {
-    pub uid: String,
     pub name: String,
     pub has_plus: bool,
 }
@@ -161,16 +168,8 @@ pub struct AlbumDto {
     pub folder_name: String,
 }
 
-pub struct StreamDto {
-    pub url: String,
-    pub codec: String,
-    pub bitrate_kbps: Option<u32>,
-    pub is_preview: bool,
-}
-
 fn account_dto(a: &Account) -> AccountDto {
     AccountDto {
-        uid: a.uid.clone(),
         name: a
             .display_name
             .clone()
@@ -185,7 +184,7 @@ fn track_dto(t: Track) -> TrackDto {
         title: t.full_title(),
         artists: t.artist_line(),
         artist_names: t.artists.iter().map(|a| a.name.clone()).collect(),
-        id: t.key.id,
+        id: t.id,
         year: t.album.as_ref().and_then(|a| a.year),
         album: t.album.map(|a| a.title),
         duration_ms: t.duration_ms.and_then(|ms| u32::try_from(ms).ok()),
@@ -201,7 +200,7 @@ pub(crate) fn track_dtos(tracks: Vec<Track>) -> Vec<TrackDto> {
 
 fn playlist_dto(p: Playlist) -> PlaylistDto {
     PlaylistDto {
-        id: p.key.id,
+        id: p.id,
         title: p.title,
         track_count: p.track_count,
         cover_url: p.cover_url,
@@ -209,7 +208,7 @@ fn playlist_dto(p: Playlist) -> PlaylistDto {
     }
 }
 
-fn artist_dto(a: moth_core::model::ArtistSummary) -> ArtistDto {
+fn artist_dto(a: ArtistSummary) -> ArtistDto {
     ArtistDto {
         id: a.id,
         name: a.name,
@@ -217,7 +216,7 @@ fn artist_dto(a: moth_core::model::ArtistSummary) -> ArtistDto {
     }
 }
 
-fn album_dto(a: moth_core::model::AlbumSummary) -> AlbumDto {
+fn album_dto(a: AlbumSummary) -> AlbumDto {
     AlbumDto {
         folder_name: a.folder_name(),
         artists: a.artist_line(),
@@ -226,15 +225,6 @@ fn album_dto(a: moth_core::model::AlbumSummary) -> AlbumDto {
         year: a.year,
         cover_url: a.cover_url,
         track_count: a.track_count,
-    }
-}
-
-fn stream_dto(s: StreamInfo) -> StreamDto {
-    StreamDto {
-        url: s.url,
-        codec: s.codec,
-        bitrate_kbps: s.bitrate_kbps,
-        is_preview: s.is_preview,
     }
 }
 
@@ -327,7 +317,7 @@ pub async fn playlist_tracks(id: String, owner_uid: Option<String>) -> Result<Ve
     run(async move {
         Ok(track_dtos(
             provider()?
-                .playlist_tracks_of(&id, owner_uid.as_deref())
+                .playlist_tracks(&id, owner_uid.as_deref())
                 .await?,
         ))
     })
@@ -384,17 +374,4 @@ pub async fn liked_albums() -> Result<Vec<AlbumDto>> {
 /// Треки альбома (все диски подряд).
 pub async fn album_tracks(id: String) -> Result<Vec<TrackDto>> {
     run(async move { Ok(track_dtos(provider()?.album_tracks(&id).await?)) }).await
-}
-
-pub async fn search(query: String) -> Result<Vec<TrackDto>> {
-    run(async move { Ok(track_dtos(provider()?.search_tracks(&query).await?)) }).await
-}
-
-pub async fn stream_url(track_id: String, low_quality: bool) -> Result<StreamDto> {
-    let quality = if low_quality {
-        Quality::Low
-    } else {
-        Quality::High
-    };
-    run(async move { Ok(stream_dto(provider()?.stream(&track_id, quality).await?)) }).await
 }

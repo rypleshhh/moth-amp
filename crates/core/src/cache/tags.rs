@@ -42,7 +42,9 @@ pub fn write_tags(path: &Path, meta: &TrackMeta, cover_jpeg: Option<&[u8]>) -> R
         tag.set_album(album.clone());
     }
     if let Some(year) = meta.year {
-        tag.insert_text(ItemKey::Year, year.to_string());
+        // Не ItemKey::Year: в ID3v2 у него нет кадра, и год молча терялся.
+        // RecordingDate — это TDRC в mp3 и DATE во flac.
+        tag.insert_text(ItemKey::RecordingDate, year.to_string());
     }
     // Откуда трек — чтобы потом сопоставлять файлы с каталогом.
     tag.insert_text(ItemKey::Comment, format!("moth-amp:{}:{}", meta.source, meta.id));
@@ -139,28 +141,6 @@ pub fn read_file_info(path: &Path) -> Result<FileInfo> {
     })
 }
 
-/// Прочитать основные теги (для проверки и для будущей локальной библиотеки).
-pub fn read_title_artist(path: &Path) -> Result<(Option<String>, Option<String>, bool)> {
-    let file = Probe::open(path)
-        .map_err(tag_error)?
-        .guess_file_type()
-        .map_err(tag_error)?
-        .read()
-        .map_err(tag_error)?;
-    let Some(tag) = file.primary_tag() else {
-        return Ok((None, None, false));
-    };
-    let has_cover = tag
-        .pictures()
-        .iter()
-        .any(|p| p.pic_type() == PictureType::CoverFront);
-    Ok((
-        tag.title().map(|s| s.into_owned()),
-        tag.artist().map(|s| s.into_owned()),
-        has_cover,
-    ))
-}
-
 #[cfg(test)]
 pub(crate) mod tests_support {
     /// Минимальный корректный mp3: кадры MPEG-1 Layer III, 128 кбит/с, 44,1 кГц.
@@ -195,10 +175,12 @@ mod tests {
         };
         // Минимальный «JPEG»: lofty не проверяет содержимое картинки.
         write_tags(&path, &meta, Some(&[0xFF, 0xD8, 0xFF, 0xD9])).unwrap();
-        let (title, artist, cover) = read_title_artist(&path).unwrap();
-        assert_eq!(title.as_deref(), Some("Название"));
-        assert_eq!(artist.as_deref(), Some("Исполнитель, Гость"));
-        assert!(cover);
+        let info = read_file_info(&path).unwrap();
+        assert_eq!(info.title.as_deref(), Some("Название"));
+        assert_eq!(info.artists, ["Исполнитель, Гость"]);
+        assert_eq!(info.album.as_deref(), Some("Альбом"));
+        assert_eq!(info.year, Some(2001));
+        assert!(info.cover.is_some());
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

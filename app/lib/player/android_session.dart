@@ -22,7 +22,7 @@ class AndroidSession {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'io.github.rypleshhh.moth_amp.playback',
         androidNotificationChannelName: 'Воспроизведение',
-        androidNotificationIcon: 'mipmap/ic_launcher',
+        androidNotificationIcon: 'drawable/ic_stat_moth',
         // Уведомление можно смахнуть на паузе — сервис тогда не держит процесс.
         androidStopForegroundOnPause: true,
       ),

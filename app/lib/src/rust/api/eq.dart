@@ -35,11 +35,9 @@ List<EqPresetDto> eqBuiltinPresets({required EqModeDto mode}) =>
 EqSettingsDto eqParseAutoeq({required String text}) =>
     RustLib.instance.api.crateApiEqEqParseAutoeq(text: text);
 
-Future<EqStateDto> eqLoad({required String path}) =>
-    RustLib.instance.api.crateApiEqEqLoad(path: path);
-
 /// Настройки с учётом S3: берётся более свежая копия (локальная или из
-/// бакета), и она же записывается на другую сторону. Без S3 — только локально.
+/// бакета), и она же записывается на другую сторону. Без S3 или когда он
+/// недоступен (NAS вне дома) — локальные настройки.
 Future<EqStateDto> eqSync({required String path}) =>
     RustLib.instance.api.crateApiEqEqSync(path: path);
 

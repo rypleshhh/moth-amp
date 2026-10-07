@@ -1,8 +1,7 @@
 //! HTTP-клиент API Яндекс Музыки.
 //!
-//! Отправляется только необходимое: токен и параметры запроса. Заголовок
-//! `X-Yandex-Music-Client` по умолчанию не передаётся; если на этапе
-//! исследования выяснится, что он обязателен, его можно задать в конфиге.
+//! Отправляется только необходимое: токен и параметры запроса, User-Agent —
+//! нейтральный, без сведений об устройстве.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,12 +19,12 @@ use crate::{Error, Result};
 
 use super::download::{build_direct_url, parse_download_xml, pick_variant};
 use super::dto::{
-    AccountStatus, DownloadInfo, Envelope, LikesResult, SearchResult, TrackShort, YAlbumInfo,
-    YArtistBrief, YArtistTracks, YLikedAlbum, YPlaylist, YSearchAll, YTrack,
+    AccountStatus, DownloadInfo, Envelope, LikesResult, TrackShort, YAlbumInfo, YArtistBrief,
+    YArtistTracks, YLikedAlbum, YPlaylist, YSearchAll, YTrack,
 };
-use super::oauth::{OAuthClient, DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET};
+use super::oauth::OAuthClient;
 
-pub const API_BASE: &str = "https://api.music.yandex.net";
+const API_BASE: &str = "https://api.music.yandex.net";
 
 /// Обновлять токен, если до истечения осталось меньше суток.
 const REFRESH_MARGIN_SECS: u64 = 24 * 60 * 60;
@@ -36,52 +35,26 @@ const ARTIST_TRACKS_LIMIT: usize = 500;
 /// Сколько треков запрашивать за один вызов `/tracks`.
 const TRACKS_BATCH: usize = 200;
 
-#[derive(Debug, Clone)]
-pub struct YandexConfig {
-    pub client_id: String,
-    pub client_secret: String,
-    /// Значение `X-Yandex-Music-Client`; `None` — заголовок не отправляется.
-    pub client_header: Option<String>,
-    /// Нейтральный User-Agent без сведений об устройстве.
-    pub user_agent: String,
-}
-
-impl Default for YandexConfig {
-    fn default() -> Self {
-        Self {
-            client_id: DEFAULT_CLIENT_ID.to_owned(),
-            client_secret: DEFAULT_CLIENT_SECRET.to_owned(),
-            client_header: None,
-            user_agent: concat!("moth-amp/", env!("CARGO_PKG_VERSION")).to_owned(),
-        }
-    }
-}
-
 pub struct ApiClient {
     http: reqwest::Client,
-    base: String,
     oauth: OAuthClient,
     store: Arc<dyn TokenStore>,
     token: Mutex<Option<TokenSet>>,
-    client_header: Option<String>,
 }
 
 impl ApiClient {
-    pub fn new(config: YandexConfig, store: Arc<dyn TokenStore>) -> Result<Self> {
+    pub fn new(store: Arc<dyn TokenStore>) -> Result<Self> {
         // Короткий таймаут соединения: при сбое сети (или нерабочем IPv6)
         // ошибка приходит за секунды, а не через ~20 с системного таймаута.
         let http = reqwest::Client::builder()
-            .user_agent(config.user_agent)
+            .user_agent(concat!("moth-amp/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(10))
             .build()?;
-        let oauth = OAuthClient::new(http.clone(), config.client_id, config.client_secret);
         Ok(Self {
+            oauth: OAuthClient::new(http.clone()),
             http,
-            base: API_BASE.to_owned(),
-            oauth,
             store,
             token: Mutex::new(None),
-            client_header: config.client_header,
         })
     }
 
@@ -120,9 +93,16 @@ impl ApiClient {
 
         if current.expires_within(REFRESH_MARGIN_SECS) {
             if let Some(refresh) = current.refresh_token.clone() {
-                let fresh = self.oauth.refresh(&refresh).await?;
-                self.store.save(&fresh)?;
-                *guard = Some(fresh);
+                match self.oauth.refresh(&refresh).await {
+                    Ok(fresh) => {
+                        self.store.save(&fresh)?;
+                        *guard = Some(fresh);
+                    }
+                    // Обновить не вышло (нет сети и т.п.), но токен ещё
+                    // действует — работаем с ним, обновим в следующий раз.
+                    Err(_) if !current.expires_within(0) => {}
+                    Err(e) => return Err(e),
+                }
             }
         }
         Ok(guard.as_ref().map(|t| t.access_token.clone()).unwrap_or_default())
@@ -130,11 +110,7 @@ impl ApiClient {
 
     async fn authorized(&self, req: RequestBuilder) -> Result<RequestBuilder> {
         let token = self.access_token().await?;
-        let mut req = req.header(AUTHORIZATION, format!("OAuth {token}"));
-        if let Some(client) = &self.client_header {
-            req = req.header("X-Yandex-Music-Client", client);
-        }
-        Ok(req)
+        Ok(req.header(AUTHORIZATION, format!("OAuth {token}")))
     }
 
     async fn send<T: DeserializeOwned>(&self, req: RequestBuilder) -> Result<T> {
@@ -144,13 +120,17 @@ impl ApiClient {
         parse_envelope(status, &body)
     }
 
-    async fn get<T: DeserializeOwned>(&self, path: &str, query: &[(&str, &str)]) -> Result<T> {
-        self.send(self.http.get(format!("{}{path}", self.base)).query(query))
+    pub(crate) async fn get<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> Result<T> {
+        self.send(self.http.get(format!("{API_BASE}{path}")).query(query))
             .await
     }
 
     async fn post_form<T: DeserializeOwned>(&self, path: &str, form: &[(&str, &str)]) -> Result<T> {
-        self.send(self.http.post(format!("{}{path}", self.base)).form(form))
+        self.send(self.http.post(format!("{API_BASE}{path}")).form(form))
             .await
     }
 
@@ -159,7 +139,7 @@ impl ApiClient {
         path: &str,
         body: &serde_json::Value,
     ) -> Result<T> {
-        self.send(self.http.post(format!("{}{path}", self.base)).json(body))
+        self.send(self.http.post(format!("{API_BASE}{path}")).json(body))
             .await
     }
 
@@ -286,19 +266,6 @@ impl ApiClient {
         Ok(out)
     }
 
-    pub async fn search_tracks(&self, text: &str) -> Result<Vec<Track>> {
-        let r: SearchResult = self
-            .get(
-                "/search",
-                &[("text", text), ("type", "track"), ("page", "0"), ("nocorrect", "false")],
-            )
-            .await?;
-        Ok(r
-            .tracks
-            .map(|b| b.results.into_iter().map(Track::from).collect())
-            .unwrap_or_default())
-    }
-
     /// Прямая ссылка на поток трека.
     pub async fn stream(&self, track_id: &str, quality: Quality) -> Result<StreamInfo> {
         let variants: Vec<DownloadInfo> = self
@@ -394,7 +361,7 @@ mod tests {
     #[tokio::test]
     async fn no_token_means_unauthorized() {
         let store = Arc::new(crate::auth::MemoryTokenStore::default());
-        let api = ApiClient::new(YandexConfig::default(), store).unwrap();
+        let api = ApiClient::new(store).unwrap();
         assert!(!api.is_logged_in().await.unwrap());
         assert!(matches!(api.access_token().await, Err(Error::Unauthorized)));
     }
